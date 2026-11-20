@@ -1,52 +1,99 @@
-<p align="center">
-  <img src="build/icon.png" width="96" height="96" alt="EchoQ Ops" />
-</p>
-
-<h1 align="center">应声运营 · EchoQ-Ops</h1>
+[简体中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  Windows 内容运营工作台：选题 → 写稿 → 配图 → 预览 → 发布 → 回收。
+  <img src="build/icon.png" width="88" height="88" alt="EchoQ Ops" />
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D6" alt="Windows" />
-  <img src="https://img.shields.io/badge/license-MIT-ff2442" alt="License" />
-  <img src="https://img.shields.io/badge/status-beta-ffb020" alt="Status" />
-</p>
+<h1 align="center">应声运营 · EchoQ Ops</h1>
+
+<p align="center">选题、写稿、配图、预览、发布、回收，放在一条链路上。</p>
+
+> 一个跑在本机的 Windows 内容运营工作台。在一个页面里完成从选题到发布，再回来查看已发布内容。程序单进程运行，默认只监听 `127.0.0.1:8710`，账号、文案与配图中转由 EchoQ 提供。仅用于内容创作与运营效率提升，使用前请确认符合各平台规则与当地法律法规。
 
 ![应声运营界面](docs/ui/ops.jpg)
 
-应声运营是一个跑在本机的内容运营台，把选题、成稿、配图、预览、多账号发布和数据回收放在一条链路里。程序在本机单进程运行，默认只监听 `127.0.0.1:8710`。
+## 功能一览
 
-> 仅用于内容创作与运营效率提升，使用前请确认符合各平台规则与当地法律法规。
+### 内容生成：一段需求直接出稿
 
-## 功能
+写下主题、角度和语气，直接生成完整笔记；支持多种语气、话题生成和实时合规检查。模型不可用时自动回落到离线模板，不会卡在空白页。
 
-| 模块 | 能力 |
+### 手机预览：按平台还原详情页
+
+右侧按平台样式还原笔记详情页，标题、正文、话题和配图随编辑实时同步，不用反复发布再删除。
+
+### 配图：内置模板和 AI 出图
+
+内置模板用本地 HTML / CSS 渲染后无头截图，适合固定版式；需要新图时走 AI 出图。落盘前会做尺寸、碰撞和越界检查，避免文字被裁掉。
+
+### 发布：队列、账号轮换与限额
+
+发布任务进入队列后幂等执行，支持多账号轮换、日限额与最小间隔、失败分类与退避重试、定时发布和一稿多号。
+
+### 回收：已发布内容与定时同步
+
+已发布内容本地缓存，可定时同步互动数据，计划任务的运行记录在页面里直接看。
+
+### 账号：Cookie / 扫码接入
+
+支持 Cookie 导入和扫码登录，凭据用 Fernet 加密保存在本机；定时巡检账号状态，遇到风控自动冷却。
+
+## 适用场景
+
+| 场景 | 用法 |
 | --- | --- |
-| 内容生成 | 一段需求直接出稿、多种语气、话题生成、实时合规检查、失败回落离线模板 |
-| 手机预览 | 按平台还原笔记详情页，编辑时实时同步 |
-| 配图 | 内置模板（本地 HTML/CSS + 无头截图）与 AI 出图两条路径；落盘前做碰撞与越界检查 |
-| 发布 | 队列幂等、账号轮换、日限额与最小间隔、失败分类与退避、定时任务、一稿多号 |
-| 回收 | 已发布内容缓存、定时同步、计划任务运行记录 |
-| 账号 | Cookie / 扫码接入、Fernet 加密、定时巡检、风控冷却 |
+| 日常笔记选题与写稿 | 内容生成，一段需求直接出稿 |
+| 发布前看排版 | 右侧手机预览，边改边看 |
+| 需要配图 | 固定版式用内置模板，新图用 AI 出图 |
+| 多账号运营 | 发布队列 + 账号轮换 + 日限额 |
+| 定时发布 | 计划任务，按时间进队列 |
+| 发布后看数据 | 已发布缓存与定时同步 |
 
 ## 快速开始
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -U pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m playwright install chromium
+1. **准备环境**：Windows 10 / 11，Python 3.10+，然后安装依赖
 
-Copy-Item .env.example .env
-.\.venv\Scripts\python.exe -X utf8 -m ops selfcheck
-run.cmd ops
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install -U pip
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   .\.venv\Scripts\python.exe -m playwright install chromium
+   ```
+
+2. **配置云端地址**：复制 `.env.example` 为 `.env`，按需修改 `OPS_CLOUD_BASE_URL`。源码运行时默认指向本机 `http://127.0.0.1:8787`，打包版指向 `https://ops.echoq.cn`
+
+3. **启动**：
+
+   ```powershell
+   .\.venv\Scripts\python.exe -X utf8 -m ops selfcheck
+   run.cmd ops
+   ```
+
+   打开 <http://127.0.0.1:8710>，登录后即可使用。
+
+## 更多功能
+
+- **合规检查**：生成时实时提示敏感词与平台规则风险
+- **失败可见**：发布失败按类型退避重试，原因保留在任务详情里
+- **定时任务**：按时间自动进队列，运行记录可回看
+- **本机存储**：账号凭据、草稿、配图和发布记录都保存在本机
+- **自检命令**：`python -X utf8 -m ops selfcheck` 检查依赖、目录和配置
+
+## 遇到问题
+
+先跑一次自检，确认依赖和配置完整；启动失败时看控制台输出，发布失败时看任务详情里的原因。仍然解决不了，带上版本号、Windows 版本和报错原文[提 Issue](https://github.com/xhmooc/echoq-ops/issues/new)，截图里如果有账号信息记得打码。
+
+也可以直接进反馈群：应声运营 1 群 **1136843749**。
+
+## 打包
+
+对外交付形态是 Electron 桌面版：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build\build-desktop.ps1
 ```
 
-打开 <http://127.0.0.1:8710>。
-
-云端账号地址通过 `OPS_CLOUD_BASE_URL` 配置，本地开发默认 `http://127.0.0.1:8787`；登录后云端按账号签发文案与配图能力，本机加密保存，页面不显示明文。
+产物输出到 `release\electron\`。
 
 ## 项目结构
 
@@ -58,40 +105,13 @@ EchoQ-Ops/
 ├─ build/               打包脚本与 PyInstaller 配置
 ├─ electron/            桌面壳（窗口 + 托盘 + 启动本地后端）
 ├─ website/             官网静态页
-├─ xhs-promo/topics/    题库种子数据
 └─ run.cmd              统一入口
 ```
 
-## 打包
+更多文档：[架构与数据流](docs/ARCHITECTURE.md) · [本地运行与配置](docs/RUNBOOK.md) · [接口文档](docs/API.md) · [数据模型](docs/DATA_MODEL.md)
 
-对外交付形态为 Electron 桌面版；`desktop.py` 与 `run.cmd ops` 用于开发调试。
-
-```powershell
-powershell -ExecutionPolicy Bypass -File build\build-desktop.ps1
-```
-
-产物输出到 `release\electron\`。
-
-## 文档
-
-- [架构与数据流](docs/ARCHITECTURE.md)
-- [本地运行与配置](docs/RUNBOOK.md)
-- [接口文档](docs/API.md)
-- [数据模型](docs/DATA_MODEL.md)
-- [多平台接入说明](docs/PLATFORMS.md)
-- [CHANGELOG](docs/CHANGELOG.md)
-
-## 边界
-
-- `vendor/` 来自 [cv-cat/Spider_XHS](https://github.com/cv-cat/Spider_XHS)，遵循 MIT，来源说明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
-- 本机接口没有鉴权，只应监听 `127.0.0.1`，不要直接暴露到公网。
-- 发布频率、账号风控与使用后果由使用者承担。
-
-## EchoQ 系列
-
-- **应声面试（EchoQ Interview）**：[GitHub](https://github.com/xhmooc/echoq-interview) · [官网](https://job.echoq.cn/)
-- **应声运营（EchoQ Ops）**：本仓库 · [官网](https://ops.echoq.cn/)
-
-## 许可证
+## 许可协议
 
 [MIT](LICENSE)。产品名称、Logo 与 EchoQ 云端服务不在授权范围内。
+
+`vendor/` 来自 [cv-cat/Spider_XHS](https://github.com/cv-cat/Spider_XHS)，遵循 MIT，来源说明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
