@@ -1,0 +1,82 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.so
+.Python
+__pypackages__/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+develop-eggs/
+eggs/
+.eggs/
+sdist/
+wheels/
+parts/
+var/
+MANIFEST
+*.manifest
+.cache
+local_settings.py
+db.sqlite3
+
+# --- 运行时与本地配置（不入库） ---
+/.runtime/
+/.env
+/datas/
+/downloads/
+*.log
+_live_session.json
+creator_cookie.json
+qrcode_login.png
+
+# --- 构建产物（统一放 release/） ---
+/release/
+/dist/
+/dist-electron/
+/.tools/
+/build/_work/
+
+# --- 前端依赖 ---
+node_modules/
+
+# --- 实验与临时目录（保留在本地，不入库） ---
+/design-lab/
+/ui-shots/
+/_scratch/
+/source/
+/reverse_pc_*/
+docx
+
+# --- xhs-promo：只保留运行时需要的题库，其余一次性脚本与产物不入库 ---
+/xhs-promo/*
+!/xhs-promo/topics/
+!/xhs-promo/topics/**
+
+# --- 编辑器 / agent 本地配置 ---
+.idea/
+.agent/
+.agents/
+.claude/
+.codex/
+AGENTS.md
+CLAUDE.md
+CODEX.md
+
+# docs/ 与 tests/ 是项目的一等公民，必须入库。
+
+# 打包中间产物
+/build/*.zip
+
+
+# 本地截图与分享包，不入库
+/.screenshots/
+/.trae-html-share-packages/
+
+
+# PyInstaller 输出
+/build/_backend/
+

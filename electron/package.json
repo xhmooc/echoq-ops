@@ -1,0 +1,52 @@
+{
+  "name": "echoq-ops-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "应声运营桌面版",
+  "main": "main.js",
+  "author": "应声",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ai.echoq.ops",
+    "productName": "应声运营",
+    "directories": {
+      "output": "../release/electron"
+    },
+    "files": [
+      "main.js",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/_backend/EchoQ-Ops.exe",
+        "to": "backend/EchoQ-Ops.exe"
+      }
+    ],
+    "win": {
+      "icon": "../build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "应声运营",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "EchoQ-Ops-Desktop-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "EchoQ-Ops-Desktop-Portable-${version}.${ext}"
+    }
+  }
+}

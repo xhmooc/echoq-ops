@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EchoQ Ops · 把内容运营做成一条流水线</title>
+  <meta name="description" content="EchoQ Ops 是运行在 Windows 上的小红书内容运营工作台：选题、成稿、配图、手机预览、多账号发布、数据回收，一条链路跑完。本地优先，数据留在你自己的电脑上。" />
+  <meta name="theme-color" content="#ff2442" />
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/site.css?v=20261118" />
+</head>
+<body>
+
+<header class="site-nav" id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 6h10M4 12h16M4 18h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+          <circle cx="19" cy="6" r="2.4" fill="currentColor" />
+        </svg>
+      </span>
+      <span class="brand-name">
+        <b>EchoQ Ops</b>
+        <span>CONTENT OPS</span>
+      </span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">能力</a>
+      <a href="#workflow">流程</a>
+      <a href="#platforms">平台</a>
+      <a href="#local">本地优先</a>
+      <a href="#faq">常见问题</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn ghost sm" type="button" data-open-modal>内测进度</button>
+      <button class="btn sm nav-cta" type="button" data-open-modal>即将开放</button>
+      <button class="nav-toggle" type="button" id="navToggle" aria-label="打开菜单" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#features">能力</a>
+  <a href="#workflow">流程</a>
+  <a href="#platforms">平台</a>
+  <a href="#local">本地优先</a>
+  <a href="#faq">常见问题</a>
+  <button class="btn" type="button" data-open-modal>查看内测进度</button>
+</div>
+
+<main>
+  <!-- 首屏 -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <div class="eyebrow">Windows 桌面端 · 小红书内容运营</div>
+        <h1>把内容运营，<br />做成一条<em>流水线</em>。</h1>
+        <p class="hero-sub">
+          选题、成稿、配图、手机比例预览、多账号发布、发布后回收，
+          原本散落在六个工具里的活，现在在一个窗口里连着做。
+        </p>
+        <div class="hero-actions">
+          <button class="btn" type="button" data-open-modal>查看内测进度</button>
+          <a class="btn ghost" href="#workflow">看它怎么跑</a>
+        </div>
+        <div class="hero-note">
+          <span><i></i>本地优先 · 数据不出本机</span>
+          <span><i></i>平台 Cookie 本地加密</span>
+          <span><i></i>内测开放中</span>
+        </div>
+      </div>
+
+      <div class="mock-stage">
+        <div class="float-chip one"><i></i><b>队列正常</b><span>下一个 09:40</span></div>
+        <div class="float-chip two"><b>今日已发 12 篇</b><span>3 个账号</span></div>
+
+        <div class="mock" aria-hidden="true">
+          <div class="mock-bar">
+            <i></i><i></i><i></i>
+            <span>EchoQ Ops · 127.0.0.1:8710</span>
+          </div>
+          <div class="mock-body">
+            <aside class="mock-rail">
+              <div class="rail-brand"><i>EQ</i><b>Ops</b></div>
+              <div class="rail-label">内容</div>
+              <div class="rail-item active"><em></em>选题池<span class="badge">18</span></div>
+              <div class="rail-item"><em></em>草稿箱<span class="badge">6</span></div>
+              <div class="rail-item"><em></em>配图库</div>
+              <div class="rail-label">发布</div>
+              <div class="rail-item"><em></em>发布队列<span class="badge">4</span></div>
+              <div class="rail-item"><em></em>账号矩阵</div>
+              <div class="rail-item"><em></em>数据回收</div>
+            </aside>
+            <div class="mock-main">
+              <div class="mock-head">
+                <div>
+                  <h4>今日内容看板</h4>
+                  <p>11 月 18 日 · 周三</p>
+                </div>
+                <div class="avatar">徐</div>
+              </div>
+              <div class="mock-stats">
+                <div class="mock-stat"><small>待发布</small><b>7<span>篇</span></b></div>
+                <div class="mock-stat"><small>今日已发</small><b>12<span>篇</span></b></div>
+                <div class="mock-stat"><small>累计曝光</small><b>3.8<span>万</span></b></div>
+              </div>
+              <div class="mock-board">
+                <div class="mock-col">
+                  <h5>选题池 <span>18</span></h5>
+                  <div class="mock-card">
+                    <strong>秋冬通勤穿搭，5 套不重样</strong>
+                    <div class="meta"><i></i><span>热度 92 · 穿搭</span></div>
+                    <span class="tag">待成稿</span>
+                  </div>
+                  <div class="mock-card">
+                    <strong>租房改造：300 元搞定氛围感</strong>
+                    <div class="meta"><i></i><span>热度 87 · 家居</span></div>
+                    <span class="tag">待成稿</span>
+                  </div>
+                  <div class="mock-card">
+                    <strong>新手化妆最容易踩的 6 个坑</strong>
+                    <div class="meta"><i></i><span>热度 84 · 美妆</span></div>
+                  </div>
+                </div>
+                <div class="mock-col">
+                  <h5>待发布 <span>7</span></h5>
+                  <div class="mock-card accent">
+                    <strong>小个子大衣挑选指南</strong>
+                    <div class="meta"><i></i><span>09:40 · @穿搭号</span></div>
+                    <span class="tag">配图完成</span>
+                  </div>
+                  <div class="mock-card">
+                    <strong>咖啡店探店｜城南新店</strong>
+                    <div class="meta"><i></i><span>12:10 · @生活号</span></div>
+                    <span class="tag">待预览</span>
+                  </div>
+                  <div class="mock-card">
+                    <strong>周末去哪儿：市集清单</strong>
+                    <div class="meta"><i></i><span>18:30 · @生活号</span></div>
+                  </div>
+                </div>
+                <div class="mock-col">
+                  <h5>已发布 <span>12</span></h5>
+                  <div class="mock-card">
+                    <strong>早八人 10 分钟早餐</strong>
+                    <div class="meta"><i></i><span>曝光 1.2w · 赞 386</span></div>
+                    <span class="tag">数据已回收</span>
+                  </div>
+                  <div class="mock-card">
+                    <strong>毛衣起球怎么救</strong>
+                    <div class="meta"><i></i><span>曝光 8600 · 赞 214</span></div>
+                    <span class="tag">数据已回收</span>
+                  </div>
+                  <div class="mock-card">
+                    <strong>通勤包实测对比</strong>
+                    <div class="meta"><i></i><span>曝光 5400 · 赞 176</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mock-phone">
+          <div class="screen">
+            <div class="phone-top"><span>笔记预览</span><span>9:41</span></div>
+            <div class="phone-cover"></div>
+            <div class="phone-title">小个子大衣挑选指南｜显高 5cm 的版型</div>
+            <div class="phone-line"></div>
+            <div class="phone-line"></div>
+            <div class="phone-line short"></div>
+            <div class="phone-tags"><span>#秋冬穿搭</span><span>#小个子</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 信任条 -->
+  <section class="trust">
+    <div class="wrap trust-inner">
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.2-7 10-4-1.8-7-5.6-7-10V6l7-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /></svg>
+        <span><b>本地优先</b> · 内容与素材不上云</span>
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="9.5" rx="2" stroke="currentColor" stroke-width="1.6" /><path d="M8 10V7.5a4 4 0 018 0V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        <span><b>Cookie 加密</b> · 只保存在本机</span>
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        <span><b>多账号队列</b> · 独立限额与间隔</span>
+      </div>
+      <div class="trust-spacer"></div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6" /><path d="M12 8v4.5l3 1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        <span>内测 <b>开放中</b></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 工作流 -->
+  <section class="section" id="workflow">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="kicker">Workflow</div>
+          <h2>一条链路，五个动作</h2>
+          <p class="section-lead">每一步都为下一步准备好数据：选题带着热点进来，成稿带着预览出去，发布后自动把数据收回来。</p>
+        </div>
+      </div>
+      <div class="workflow reveal">
+        <div class="step">
+          <span class="dot"></span>
+          <div class="num">01 / 选题</div>
+          <h3>先把题找对</h3>
+          <p>按赛道拉取热门笔记与话题，进选题池前先标好热度、关键词和账号归属。</p>
+        </div>
+        <div class="step">
+          <div class="num">02 / 成稿</div>
+          <h3>一段需求出稿</h3>
+          <p>9 种语气可选，边写边做合规检查；模型不可用时自动回落到离线模板。</p>
+        </div>
+        <div class="step">
+          <div class="num">03 / 配图</div>
+          <h3>封面与内页</h3>
+          <p>内置模板直接出图，也可以按需调用 AI 配图；落盘前做碰撞与越界检查。</p>
+        </div>
+        <div class="step">
+          <div class="num">04 / 预览</div>
+          <h3>像真的一样看</h3>
+          <p>按平台还原笔记详情页，改一个字，手机里的预览同步更新。</p>
+        </div>
+        <div class="step">
+          <div class="num">05 / 发布回收</div>
+          <h3>排队，然后收数</h3>
+          <p>多账号轮流发，日限额与最小间隔各自独立；发布后按周期回收集合数据。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 能力 -->
+  <section class="section tight" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="kicker">Capabilities</div>
+          <h2>不是功能堆叠，是干活顺序</h2>
+          <p class="section-lead">每个模块都对着运营每天真实会做的一步，省掉的是复制、粘贴、来回切窗口。</p>
+        </div>
+      </div>
+
+      <div class="bento">
+        <div class="bento-card span-7 reveal">
+          <div class="tagline">Publish Queue</div>
+          <h3>发布队列，按账号各排各的</h3>
+          <p>一稿多号、定时发布、账号轮换。每个账号有自己的日限额与最小间隔，失败自动分类并退避重试，不会因为一个号卡住整条队列。</p>
+          <div class="mini-queue">
+            <div class="q-row"><span class="q-time">09:40</span><span class="q-title">小个子大衣挑选指南</span><span class="q-status live">已发布</span></div>
+            <div class="q-row"><span class="q-time">12:10</span><span class="q-title">咖啡店探店｜城南新店</span><span class="q-status wait">排队中</span></div>
+            <div class="q-row"><span class="q-time">18:30</span><span class="q-title">周末去哪儿：市集清单</span><span class="q-status">待发布</span></div>
+          </div>
+        </div>
+
+        <div class="bento-card span-5 reveal d1">
+          <div class="tagline">Accounts</div>
+          <h3>多账号矩阵</h3>
+          <p>扫码或 Cookie 接入，加密保存在本机。定时巡检登录状态，遇到风控自动进冷却，不带着失效账号去发。</p>
+          <div class="account-stack">
+            <span class="ava">穿</span>
+            <span class="ava">生</span>
+            <span class="ava">美</span>
+            <span class="ava more">+3</span>
+            <span class="account-meta"><b>6 个账号在线</b>3 个赛道 · 独立限额</span>
+          </div>
+        </div>
+
+        <div class="bento-card span-4 reveal">
+          <div class="tagline">Visual</div>
+          <h3>配图不外包</h3>
+          <p>内置模板在本地渲染，尺寸、留白、字号都按平台规范来；需要更精细的封面再单独调用 AI 配图。</p>
+          <div class="swatches">
+            <div class="swatch"><span>COVER 3:4</span></div>
+            <div class="swatch"><span>INNER 3:4</span></div>
+            <div class="swatch"><span>NOTE 1:1</span></div>
+          </div>
+        </div>
+
+        <div class="bento-card span-4 reveal d1">
+          <div class="tagline">Preview</div>
+          <h3>手机比例预览</h3>
+          <p>标题折行、封面裁切、话题位置，都以真实设备比例呈现，避免发出去才发现被截断。</p>
+          <div class="preview-mini">
+            <div class="phone">
+              <div class="screen">
+                <div class="cover"></div>
+                <div class="l"></div>
+                <div class="l"></div>
+                <div class="l s"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bento-card span-4 reveal d2">
+          <div class="tagline">Analytics</div>
+          <h3>发布后自动收数</h3>
+          <p>已发布内容本地缓存，按周期同步曝光、点赞与收藏，哪类选题跑得动，看得见。</p>
+          <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 平台 -->
+  <section class="section" id="platforms">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="kicker">Platforms</div>
+          <h2>先做好小红书，再往外长</h2>
+          <p class="section-lead">同一套选题、成稿与素材，按平台规则分别适配。每个平台的完成度我们如实标注。</p>
+        </div>
+      </div>
+      <div class="platforms">
+        <div class="platform reveal">
+          <div class="platform-top">
+            <span class="platform-mark">红</span>
+            <div>
+              <h3>小红书</h3>
+              <div class="sub">Xiaohongshu</div>
+            </div>
+          </div>
+          <p>选题、成稿、配图、手机预览、多账号发布、数据回收，全链路可用，也是当前的主力场景。</p>
+          <span class="state"><i></i>完整支持</span>
+        </div>
+        <div class="platform reveal d1">
+          <div class="platform-top">
+            <span class="platform-mark">抖</span>
+            <div>
+              <h3>抖音</h3>
+              <div class="sub">Douyin</div>
+            </div>
+          </div>
+          <p>支持图文发布与发布后数据回收，发布参数按抖音的规则单独适配。</p>
+          <span class="state"><i></i>发布与回收</span>
+        </div>
+        <div class="platform reveal d2">
+          <div class="platform-top">
+            <span class="platform-mark">公</span>
+            <div>
+              <h3>微信公众号</h3>
+              <div class="sub">WeChat MP</div>
+            </div>
+          </div>
+          <p>把成稿同步为公众号草稿，排版与终审仍在公众号后台完成，不代替你做最后确认。</p>
+          <span class="state draft"><i></i>草稿同步</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 本地优先 -->
+  <section class="section" id="local">
+    <div class="wrap">
+      <div class="local-card reveal">
+        <div>
+          <div class="kicker">Local First</div>
+          <h2>你的内容，<br />留在你的电脑里</h2>
+          <p class="section-lead">Ops 是一个装在本机的桌面程序，不是又一个要把素材传上去的网页后台。数据库、配图、草稿、平台凭证都在本地。</p>
+          <ul class="local-points">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7" /><path d="M8.2 12.4l2.5 2.5 5-5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span><b>SQLite 本地数据库</b>，草稿与发布记录不经过我们的服务器</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7" /><path d="M8.2 12.4l2.5 2.5 5-5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span><b>平台 Cookie 本地加密</b>，只在发布时由本机调用</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7" /><path d="M8.2 12.4l2.5 2.5 5-5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span><b>云端只做四件事</b>：账号、订阅、AI 中转、版本更新</span>
+            </li>
+          </ul>
+        </div>
+        <div class="diagram">
+          <div class="diagram-box">
+            <div class="label">This Machine</div>
+            <h4>EchoQ Ops · 本地</h4>
+            <div class="row"><i class="accent"></i>选题池 / 草稿 / 成稿</div>
+            <div class="row"><i class="accent"></i>配图与素材文件</div>
+            <div class="row"><i class="accent"></i>发布队列与运行记录</div>
+            <div class="row"><i class="accent"></i>SQLite 数据库 · Cookie 密文</div>
+          </div>
+          <div class="diagram-link">
+            <span>HTTPS</span>
+            <div class="line"></div>
+            <span>受限调用</span>
+          </div>
+          <div class="diagram-box">
+            <div class="label">EchoQ Cloud</div>
+            <h4>只做必要的事</h4>
+            <div class="row"><i></i>账号登录与订阅状态</div>
+            <div class="row"><i></i>AI 能力中转</div>
+            <div class="row"><i></i>版本检查与更新</div>
+            <div class="row"><i></i>不托管你的内容与素材</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 内测 -->
+  <section class="section tight" id="access">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="kicker">Access</div>
+          <h2>内测开放中，安装包即将放出</h2>
+          <p class="section-lead">现阶段先把账号体系跑通。你可以先注册 EchoQ 账号，安装包准备好后，用同一个账号直接登录。</p>
+        </div>
+      </div>
+      <div class="access">
+        <div class="price-card reveal">
+          <span class="badge"><i></i>Beta · 内测期</span>
+          <div class="price-line"><b>内测</b><span>安装包即将放出</span></div>
+          <p>现阶段先把账号体系跑通。你可以先注册 EchoQ 账号，安装包准备好后，用同一个账号直接登录。</p>
+          <ul class="price-list">
+            <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>全功能可用</li>
+            <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>多账号支持</li>
+            <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>模板不限量</li>
+            <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>内测群直接反馈</li>
+          </ul>
+        </div>
+        <div class="access-side reveal d1">
+          <h3>现在可以做什么</h3>
+          <p>安装包还在最后的打包与签名阶段。以下三步可以先完成，不用等。</p>
+          <div class="access-step">
+            <span class="n">01</span>
+            <div><b>注册 EchoQ 账号</b><span>与应声面试共用一套账号体系，不用重复注册。</span></div>
+          </div>
+          <div class="access-step">
+            <span class="n">02</span>
+            <div><b>确认运行环境</b><span>Windows 10 / 11，建议预留 2 GB 磁盘空间与稳定网络。</span></div>
+          </div>
+          <div class="access-step">
+            <span class="n">03</span>
+            <div><b>关注开放通知</b><span>安装包开放后，本页会直接更新下载入口。</span></div>
+          </div>
+          <button class="btn" type="button" data-open-modal>查看内测进度</button>
+          <p class="fineprint">暂不提供安装包下载 · 当前为内测筹备阶段</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="kicker">FAQ</div>
+          <h2>几个常被问到的问题</h2>
+        </div>
+      </div>
+      <div class="faq reveal">
+        <details>
+          <summary>什么时候能下载？现在能用吗？</summary>
+          <p>安装包正在做最后的打包、签名与安装流程验证，暂未对外开放。本页不会放无效链接，开放下载时会直接在这里更新入口，同时通过内测群通知。</p>
+        </details>
+        <details>
+          <summary>数据真的只存在本地吗？</summary>
+          <p>草稿、成稿、配图、发布记录与平台 Cookie 都保存在本机：内容在 SQLite 数据库里，Cookie 在本机加密后落盘。云端只负责账号登录、订阅状态、AI 能力中转和版本检查，不托管你的内容与素材。</p>
+        </details>
+        <details>
+          <summary>需要自己准备 AI Key 吗？</summary>
+          <p>不需要。登录 EchoQ 账号后，云端会按账号签发文案与配图 Key，本机加密保存，页面不显示明文。没有可用模型时，成稿会自动回落到离线模板，功能不至于中断。</p>
+        </details>
+        <details>
+          <summary>会不会因为多账号发布被平台风控？</summary>
+          <p>Ops 提供的是账号隔离、独立日限额、最小发布间隔和失败退避这些基础控制，也会在巡检到异常时让账号进入冷却。它不绕过验证码，也不承诺规避平台规则，发布频率与使用后果仍需你自己把握。</p>
+        </details>
+        <details>
+          <summary>支持哪些平台？</summary>
+          <p>小红书是当前的主力场景，全链路可用；抖音支持图文发布与数据回收；微信公众号支持把成稿同步为草稿，排版与终审仍在公众号后台完成。</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- 结尾 CTA -->
+  <section class="final">
+    <div class="wrap">
+      <h2>等安装包的时候，<br />先把账号准备好</h2>
+      <p>EchoQ 账号与应声面试共用。注册完成后，Ops 开放下载时可以直接登录使用。</p>
+      <div class="hero-actions">
+        <a class="btn" href="https://job.echoq.cn/account.html">注册 / 登录 EchoQ 账号</a>
+        <button class="btn ghost" type="button" data-open-modal>查看内测进度</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="/">
+          <span class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 6h10M4 12h16M4 18h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+              <circle cx="19" cy="6" r="2.4" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="brand-name">
+            <b>EchoQ Ops</b>
+            <span>CONTENT OPS</span>
+          </span>
+        </a>
+        <p class="footer-about">运行在 Windows 上的内容运营工作台。选题到回收，一条链路跑完；数据留在你自己的电脑上。</p>
+      </div>
+      <div class="footer-col">
+        <h4>产品</h4>
+        <a href="#features">能力</a>
+        <a href="#workflow">工作流</a>
+        <a href="#platforms">支持平台</a>
+        <a href="#local">本地优先</a>
+      </div>
+      <div class="footer-col">
+        <h4>获取</h4>
+        <a href="#access">内测说明</a>
+        <a href="https://job.echoq.cn/account.html">账号中心</a>
+        <a href="#faq">常见问题</a>
+        <a href="https://job.echoq.cn">应声面试</a>
+      </div>
+      <div class="footer-col">
+        <h4>条款</h4>
+        <a href="/privacy.html">隐私政策</a>
+        <a href="/terms.html">服务条款</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 EchoQ · 保留所有权利</span>
+      <span><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">赣ICP备2026030905号</a></span>
+      <span class="mono">OPS / BUILD 2026.11</span>
+    </div>
+  </div>
+</footer>
+
+<!-- 内测进度弹窗 -->
+<div class="modal" id="betaModal" role="dialog" aria-modal="true" aria-labelledby="betaTitle">
+  <div class="modal-backdrop" data-close-modal></div>
+  <div class="modal-card">
+    <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
+    <div class="modal-kicker">Beta Status</div>
+    <h3 id="betaTitle">安装包即将开放</h3>
+    <p>当前处于内测筹备阶段：打包、签名与安装流程还在验证，本页暂不提供安装包下载。开放后这里会直接更新入口，也会通过内测群通知。</p>
+    <div class="modal-actions">
+      <a class="btn" href="https://job.echoq.cn/account.html">先注册 EchoQ 账号</a>
+      <button class="btn ghost" type="button" data-close-modal>知道了</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/site.js?v=20261118" defer></script>
+</body>
+</html>
