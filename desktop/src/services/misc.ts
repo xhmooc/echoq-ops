@@ -382,6 +382,8 @@ export function settingsPublic(): Record<string, unknown> {
     values,
     llm: {
       configured: false,
+      // Node 版当前只有离线模板，前端据此显示「离线模板」而不是误报「账号不可用」。
+      offline_only: true,
       base_url: `${String(process.env.OPS_CLOUD_BASE_URL || "http://127.0.0.1:8787").replace(/\/+$/, "")}/v1`,
       model: getSetting("llm_model", "deepseek-chat") || "deepseek-chat",
       timeout_sec: 45,

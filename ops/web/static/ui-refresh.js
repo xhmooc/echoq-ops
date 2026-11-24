@@ -232,6 +232,7 @@
     if (!cloud.logged_in) return ["未登录", "warn"];
     const llm = state.settings && state.settings.llm;
     if (llm && llm.configured) return ["模型就绪", "ok"];
+    if (llm && llm.offline_only) return ["离线模板", "warn"];
     return ["账号不可用", "bad"];
   }
 

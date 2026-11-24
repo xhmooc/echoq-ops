@@ -14,7 +14,7 @@ import {
   responseJson,
   type WxResponse,
 } from "./client";
-import { findField, parseAccount } from "./parser";
+import { avatarFromHtml, findField, parseAccount } from "./parser";
 
 const COVER_MAX_BYTES = 10 * 1024 * 1024;
 const IMAGE_SUFFIXES = new Set([".jpg", ".jpeg", ".png"]);
@@ -396,10 +396,7 @@ export async function checkSession(
       return { ok: false, message: "公众号登录态已失效，请重新扫码登录" };
     }
     // 首页 HTML 里通常带一张头像地址；拿不到就留空，界面回退到平台色块。
-    const avatarMatch = /"(?:head_img|hd_head_img|avatar)"\s*:\s*"([^"]+)"/.exec(
-      response.text
-    );
-    const avatar = avatarMatch ? avatarMatch[1].replace(/\\\//g, "/") : "";
+    const avatar = avatarFromHtml(response.text);
     return {
       ok: true,
       message: "登录态正常",

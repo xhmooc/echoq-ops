@@ -33,6 +33,7 @@ import { QrRegistry } from "../platforms/wechat/qr";
 import { checkSession, publishDraft } from "../platforms/wechat/publish";
 import { DouyinQrRegistry } from "../platforms/douyin/qr";
 import { checkSession as douyinCheckSession } from "../platforms/douyin/adapter";
+import { XhsQrRegistry } from "../platforms/xiaohongshu/qr";
 import { fetchPublished, markSyncError, savePublished } from "../platforms/wechat/published";
 import { overview } from "../services/overview";
 import {
@@ -105,13 +106,19 @@ import { checkCopy, generateCopy, generateFromBrief, rewriteCopy } from "../serv
 import { handleUpload } from "../services/uploads";
 import { createBackup, restoreBackup } from "../services/backup";
 import {
+  ensureDesignSamples,
+  ledgerRecent,
   renderArtworkInline,
   renderCover,
+  renderDesignCandidates,
   renderDesignCards,
   renderDraftCards,
   renderMotion,
+  selectDesignCandidate,
 } from "../render/cards";
 import { CARD_LAYOUTS, CARD_PALETTES, CARD_STYLES, ART_STYLES, isArtStyle } from "../render/templates";
+import { V2_LAYOUTS, V2_PALETTE_KEYS, V2_STYLES } from "../render/v2templates";
+import { SKETCH_STYLES } from "../render/sketch";
 import { confirmRun, rerunStage, runSchedule, tickSchedules } from "../services/schedulerEngine";
 import { startLoop, stopLoop, tick as workerTick, workerStatus } from "../services/worker";
 import * as cloud from "../services/cloud";
@@ -124,6 +131,14 @@ import {
 
 const registry = new QrRegistry();
 const douyinRegistry = new DouyinQrRegistry();
+const xhsQrRegistry = new XhsQrRegistry();
+
+/** 按会话 id 前缀选择扫码会话，避免三个平台的会话混在一起。 */
+function pickQrSession(sid: string) {
+  if (sid.startsWith("dy")) return douyinRegistry.get(sid);
+  if (sid.startsWith("xhs")) return xhsQrRegistry.get(sid);
+  return registry.get(sid);
+}
 
 function ok(data: unknown, extra: Record<string, unknown> = {}): Record<string, unknown> {
   return { ok: true, data, ...extra };
@@ -374,23 +389,25 @@ export function buildRouter(): Router {
   });
   router.post("/api/accounts/qr", async (ctx) => {
     const platform = normalizePlatform(ctx.body.platform || "wechat_mp");
-    if (platform !== "wechat_mp" && platform !== "douyin") {
-      throw new HttpError(400, "小红书暂不支持扫码登录，请粘贴 Cookie 接入");
+    if (
+      platform !== "wechat_mp" &&
+      platform !== "douyin" &&
+      platform !== "xiaohongshu"
+    ) {
+      throw new HttpError(400, "该平台暂不支持扫码登录，请粘贴 Cookie 接入");
     }
     if (!fs.existsSync(KEY_PATH)) throw new HttpError(400, `未找到 Cookie 加密密钥：${KEY_PATH}`);
     const proxy = String(ctx.body.proxy || "");
-    return ok(
-      platform === "douyin" ? await douyinRegistry.start(proxy) : await registry.start(proxy)
-    );
+    if (platform === "douyin") return ok(await douyinRegistry.start(proxy));
+    if (platform === "xiaohongshu") return ok(await xhsQrRegistry.start(proxy));
+    return ok(await registry.start(proxy));
   });
-  router.get("/api/accounts/qr/:sid", (ctx) => {
-    const sid = ctx.params.sid;
-    return ok(sid.startsWith("dy") ? douyinRegistry.poll(sid) : registry.poll(sid));
-  });
+  router.get("/api/accounts/qr/:sid", (ctx) => ok(pickQrSession(ctx.params.sid).payload()));
   router.post("/api/accounts/qr/:sid/save", (ctx) => {
     const sid = ctx.params.sid;
     const isDouyin = sid.startsWith("dy");
-    const session = isDouyin ? douyinRegistry.get(sid) : registry.get(sid);
+    const isXhs = sid.startsWith("xhs");
+    const session = pickQrSession(sid);
     const payload = session.payload() as unknown as {
       status?: string;
       message?: string;
@@ -408,9 +425,11 @@ export function buildRouter(): Router {
     if (!state.cookie_header) {
       throw new HttpError(400, "扫码完成但没有拿到有效登录态，请重试");
     }
+    const platform = isDouyin ? "douyin" : isXhs ? "xiaohongshu" : "wechat_mp";
+    const fallbackName = isDouyin ? "抖音账号" : isXhs ? "小红书账号" : "公众号";
     const account = upsertSession(
-      isDouyin ? "douyin" : "wechat_mp",
-      String(ctx.body.name || payload.nickname || (isDouyin ? "抖音账号" : "公众号")),
+      platform,
+      String(ctx.body.name || payload.nickname || fallbackName),
       state,
       {
         nickname: payload.nickname,
@@ -420,17 +439,13 @@ export function buildRouter(): Router {
       }
     );
     if (isDouyin) douyinRegistry.drop(sid);
+    else if (isXhs) xhsQrRegistry.drop(sid);
     else registry.drop(sid);
     return ok(account);
   });
-  router.post("/api/accounts/qr/:sid/window", (ctx) => {
-    const sid = ctx.params.sid;
-    return ok(
-      sid.startsWith("dy")
-        ? douyinRegistry.get(sid).openWindow()
-        : registry.get(sid).openWindow()
-    );
-  });
+  router.post("/api/accounts/qr/:sid/window", (ctx) =>
+    ok(pickQrSession(ctx.params.sid).openWindow())
+  );
   router.patch("/api/accounts/:id", (ctx) => ok(updateAccount(intParam(ctx.params.id, "账号 ID"), ctx.body)));
   router.delete("/api/accounts/:id", (ctx) => {
     deleteAccount(intParam(ctx.params.id, "账号 ID"));
@@ -785,7 +800,7 @@ export function buildRouter(): Router {
   });
   const renderOptions = (body: Record<string, unknown>): Record<string, string> => {
     const options: Record<string, string> = {};
-    for (const key of ["style", "layout", "palette", "platform", "brand", "column", "issue", "themeColor"]) {
+    for (const key of ["style", "layout", "palette", "platform", "brand", "column", "issue", "themeColor", "variant", "limit"]) {
       if (body[key]) options[key] = String(body[key]);
     }
     return options;
@@ -801,8 +816,27 @@ export function buildRouter(): Router {
   router.post("/api/drafts/:id/design-cards", async (ctx) => {
     const id = intParam(ctx.params.id, "草稿 ID");
     draftOr404(id);
+    // M1 1.4 多候选：一次出 3 套「风格 × 版式」，不改动草稿配图，等用户点选。
+    if (String(ctx.body.mode || "") === "candidates") {
+      return ok(await renderDesignCandidates(id, renderOptions(ctx.body) as never));
+    }
     const style = String(ctx.body.style || "");
     return ok(await renderDesignCards(id, style, renderOptions(ctx.body) as never));
+  });
+  router.get("/api/design/samples", async (ctx) => {
+    // M1 1.3 样张：懒加载生成并落盘缓存；?force=1 强制重渲。
+    return ok(await ensureDesignSamples(ctx.query.get("force") === "1"));
+  });
+  router.post("/api/drafts/:id/design-candidate/select", async (ctx) => {
+    // M1 1.4 点选候选 + M1 1.6 记入外观账本。
+    const id = intParam(ctx.params.id, "草稿 ID");
+    draftOr404(id);
+    return ok(await selectDesignCandidate(id, renderOptions(ctx.body) as never));
+  });
+  router.get("/api/design/ledger", (ctx) => {
+    // M1 1.6 外观账本：某账号最近选用的风格组合。
+    const account = Number(ctx.query.get("account_id") || 0);
+    return ok(ledgerRecent(account));
   });
   router.post("/api/drafts/:id/motion", async (ctx) => {
     const id = intParam(ctx.params.id, "草稿 ID");
@@ -831,6 +865,17 @@ export function buildRouter(): Router {
   );
   router.get("/api/design/styles", () =>
     ok([
+      ...V2_STYLES.map((item) => ({
+        key: item.key,
+        name: item.name,
+        group: "info",
+        desc: item.desc,
+        fit: item.fit,
+        colors: item.colors,
+        temperature: item.temperature,
+        layouts: V2_LAYOUTS.map((layout) => layout.key),
+        palette_keys: V2_PALETTE_KEYS,
+      })),
       ...CARD_STYLES.map((item) => ({
         key: item.key,
         name: item.name,
@@ -839,6 +884,15 @@ export function buildRouter(): Router {
         colors: item.colors,
       })),
       ...ART_STYLES.map((item) => ({ key: item.key, name: item.name, group: item.group, desc: "程序化插画" })),
+      ...SKETCH_STYLES.map((item) => ({
+        key: item.key,
+        name: item.name,
+        group: item.group,
+        desc: item.desc,
+        fit: item.fit,
+        colors: item.colors,
+        temperature: item.temperature,
+      })),
     ])
   );
   router.post("/api/design/plan", (ctx) => {

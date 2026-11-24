@@ -6,7 +6,8 @@
  * capturePage 截二维码区域或整页。扫码完成后页面进入 creator-micro，再调用
  * 创作者账号接口读取昵称 / 抖音号 / 头像，并把 partition 里的 Cookie 交回。
  */
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, NativeImage } from "electron";
+import { log } from "../../core/log";
 import {
   CREATOR_HOME,
   CREATOR_MICRO_HOME,
@@ -29,7 +30,33 @@ import {
 const QR_TTL_MS = 300 * 1000;
 const NEEDS_ACTION_MS = 180 * 1000;
 
-const QR_SCRIPT = `(() => {
+const QR_SCRIPT = `(async () => {
+  const looksLikeQr = (url) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        if (img.naturalWidth < 100 || img.naturalHeight < 100) return resolve(false);
+        if (Math.abs(img.naturalWidth - img.naturalHeight) > 8) return resolve(false);
+        const size = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        const data = ctx.getImageData(0, 0, size, size).data;
+        let dark = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i] < 110 && data[i + 1] < 110 && data[i + 2] < 110) dark += 1;
+        }
+        resolve(dark / (size * size) > 0.2 && dark / (size * size) < 0.75);
+      } catch (error) {
+        resolve(false);
+      }
+    };
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+  const candidates = [];
   const selectors = [
     'div#animate_qrcode_container img[src^="data:image"]',
     'div[class*="animate_qrcode_container"] img[src^="data:image"]',
@@ -39,22 +66,23 @@ const QR_SCRIPT = `(() => {
   for (const selector of selectors) {
     const el = document.querySelector(selector);
     if (!el) continue;
-    if (el.tagName === 'IMG' && el.src) return el.src;
-    if (el.tagName === 'CANVAS' && el.toDataURL) return el.toDataURL('image/png');
+    if (el.tagName === 'IMG' && el.src) candidates.push(el.src);
     const background = getComputedStyle(el).backgroundImage || '';
     if (background.includes('data:image')) {
       const match = /url\\(["']?(data:image[^"')]+)/.exec(background);
-      if (match) return match[1];
+      if (match) candidates.push(match[1]);
     }
   }
-  const canvases = Array.from(document.querySelectorAll('canvas'));
-  for (const canvas of canvases) {
-    if (canvas.width < 80 || canvas.height < 80) continue;
+  for (const canvas of Array.from(document.querySelectorAll('canvas'))) {
+    if (canvas.width < 100 || Math.abs(canvas.width - canvas.height) > 8) continue;
     try {
-      return canvas.toDataURL('image/png');
+      candidates.push(canvas.toDataURL('image/png'));
     } catch (error) {
       /* 跨域画布读不到，继续找 */
     }
+  }
+  for (const url of candidates) {
+    if (await looksLikeQr(url)) return url;
   }
   return '';
 })()`;
@@ -75,25 +103,6 @@ const QR_RECT_SCRIPT = `(() => {
     }
   }
   return null;
-})()`;
-
-const LOGIN_TAB_SCRIPT = `(() => {
-  const texts = ['扫码登录', '二维码登录'];
-  const nodes = Array.from(document.querySelectorAll('div, span, button, a'));
-  const visible = (el) => {
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return false;
-    const style = getComputedStyle(el);
-    return style.visibility !== 'hidden' && style.display !== 'none';
-  };
-  for (const el of nodes) {
-    const text = (el.innerText || '').trim();
-    if (!texts.includes(text)) continue;
-    if (!visible(el)) continue;
-    el.click();
-    return true;
-  }
-  return false;
 })()`;
 
 export interface DouyinQrPayload extends Record<string, unknown> {
@@ -120,6 +129,30 @@ interface QrRect {
   y: number;
   width: number;
   height: number;
+}
+
+/** 判断截图是否像二维码：黑像素占比过低多半是占位图/背景，过高是纯深色图。 */
+function isQrImage(image: NativeImage): boolean {
+  try {
+    const { width, height } = image.getSize();
+    if (!width || !height) return false;
+    const bitmap = image.toBitmap();
+    const total = width * height;
+    const step = 4 * Math.max(1, Math.floor(total / 8000));
+    let dark = 0;
+    let sampled = 0;
+    for (let index = 0; index < bitmap.length; index += step) {
+      const blue = bitmap[index];
+      const green = bitmap[index + 1];
+      const red = bitmap[index + 2];
+      if (red < 110 && green < 110 && blue < 110) dark += 1;
+      sampled += 1;
+    }
+    const ratio = sampled ? dark / sampled : 0;
+    return ratio > 0.18 && ratio < 0.75;
+  } catch {
+    return false;
+  }
 }
 
 export class DouyinQrSession {
@@ -159,7 +192,11 @@ export class DouyinQrSession {
   async start(): Promise<Record<string, unknown>> {
     try {
       this.ses = await prepareDouyinSession(this.partition, this.proxy);
-      this.win = createDouyinWindow(this.partition, false, "抖音 · 扫码登录");
+      // 抖音登录页只有在窗口“可见”时才真正请求二维码（隐藏/离屏窗口会被
+      // Chromium 判为不可见，只显示占位图）。这里用全透明窗口：对页面来说
+      // 正常可见，对用户完全不可见，也不会出现在任务栏或抢焦点。
+      this.win = createDouyinWindow(this.partition, true, "抖音 · 扫码登录", true);
+      this.prepareInvisibleWindow(this.win);
       this.win.on("closed", this.onWindowClosed);
       await loadDouyinPage(this.win, CREATOR_HOME, 60_000);
       await sleep(1200);
@@ -172,22 +209,25 @@ export class DouyinQrSession {
         }
       }
 
-      await execPage<boolean>(this.win, LOGIN_TAB_SCRIPT).catch(() => false);
-      await sleep(800);
-
-      const qr = await this.waitQr(30_000);
+      // 登录页实测约 6~10 秒才把占位图换成真实二维码，这里耐心等 DOM 里的原图，
+      // 期间不用整页截图兜底（深色背景会被误判成二维码）。
+      const qr = await this.waitQr(35_000);
       if (!qr) {
-        // 截不到二维码时不直接失败：保留窗口，让用户点「打开登录窗口」手动扫码。
+        // 截不到二维码时直接把登录窗口显示出来，让用户手动扫码。
         this.status = "waiting";
-        this.message = "未能自动截取抖音二维码，请点击「打开登录窗口」用抖音 App 扫码登录";
+        this.message = "未能自动截取二维码，已打开抖音登录窗口，请直接扫码登录";
         this.notice = this.message;
         this.needsAction = true;
+        this.revealWindow();
         this.startTimer();
         return this.payload();
       }
       this.qrImage = qr;
       this.status = "waiting";
       this.message = "请用抖音 App 扫码登录";
+      // 窗口保持透明显示，页面继续在前台运行并轮询扫码结果；出现安全验证
+      // 时再通过「打开验证窗口」把窗口显示出来。
+      this.visible = false;
       this.startTimer();
       return this.payload();
     } catch (error) {
@@ -219,8 +259,7 @@ export class DouyinQrSession {
     this.visible = true;
     this.needsAction = false;
     this.needsActionUntil = Date.now() + NEEDS_ACTION_MS;
-    this.win.show();
-    this.win.focus();
+    this.revealWindow();
     this.message = "已打开抖音登录窗口，请在 3 分钟内完成扫码或安全验证";
     this.notice = this.message;
     return this.payload();
@@ -246,6 +285,26 @@ export class DouyinQrSession {
 
   close(): void {
     this.closeBrowser();
+  }
+
+  /** 全透明窗口：不进任务栏、不抢焦点、不挡鼠标，但页面仍按“可见”运行。 */
+  private prepareInvisibleWindow(win: BrowserWindow): void {
+    win.setSkipTaskbar(true);
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.blur();
+  }
+
+  /** 需要人工操作时把登录窗口真正显示出来。 */
+  private revealWindow(): void {
+    const win = this.win;
+    if (!win || win.isDestroyed()) return;
+    win.setIgnoreMouseEvents(false);
+    win.setSkipTaskbar(false);
+    win.setOpacity(1);
+    win.show();
+    win.moveTop();
+    win.focus();
+    this.visible = true;
   }
 
   // ------------------------------------------------------------ 内部
@@ -407,53 +466,60 @@ export class DouyinQrSession {
 
   private async waitQr(timeoutMs: number): Promise<string> {
     const deadline = Date.now() + timeoutMs;
-    let attempt = 0;
     while (Date.now() < deadline) {
-      const qr = await this.grabQr(false);
+      const qr = await this.grabQr();
       if (qr) return qr;
-      attempt += 1;
-      if (attempt % 4 === 0) {
-        const shot = await this.grabQr(true);
-        if (shot) return shot;
-      }
       await sleep(700);
     }
-    return this.grabQr(true);
+    // 兜底只截二维码区域，并且必须通过二维码特征校验，绝不返回整页截图。
+    const rectQr = await this.grabQrRect();
+    if (!rectQr && this.win && !this.win.isDestroyed()) {
+      try {
+        const url = this.win.webContents.getURL();
+        const text = await readPageText(this.win);
+        log.warn(`抖音二维码未截取: url=${url} text=${text.slice(0, 120)}`);
+      } catch {
+        /* 页面已关闭时忽略 */
+      }
+    }
+    return rectQr;
   }
 
-  /** 先读 DOM 里的二维码原图；取不到时截二维码区域，最后退化为整页截图。 */
-  private async grabQr(fullFallback: boolean): Promise<string> {
+  /** 读取 DOM 里的二维码原图（页面实测约 6~9 秒后才把占位图换成真实二维码）。 */
+  private async grabQr(): Promise<string> {
     const win = this.win;
     if (!win || win.isDestroyed()) return "";
-    const src = await execPage<string>(win, QR_SCRIPT).catch(() => "");
-    if (typeof src === "string" && src) {
-      const dataUrl = await this.toDataUrl(src);
-      if (dataUrl) return dataUrl;
+    // 抖音登录可能嵌在子框架里，逐帧都尝试一遍。
+    const frames = [win.webContents.mainFrame, ...win.webContents.mainFrame.frames];
+    for (const frame of frames) {
+      const src = await frame.executeJavaScript(QR_SCRIPT, true).catch(() => "");
+      if (typeof src === "string" && src) {
+        const dataUrl = await this.toDataUrl(src);
+        if (dataUrl) return dataUrl;
+      }
     }
+    return "";
+  }
+
+  /** 截取二维码容器区域，用黑像素占比校验，避免把占位 logo / 背景当成二维码。 */
+  private async grabQrRect(): Promise<string> {
+    const win = this.win;
+    if (!win || win.isDestroyed()) return "";
     const rect = await execPage<QrRect | null>(win, QR_RECT_SCRIPT).catch(() => null);
-    if (rect && rect.width >= 80 && rect.height >= 80) {
-      try {
-        const padding = 8;
-        const x = Math.max(0, Math.round(rect.x - padding));
-        const y = Math.max(0, Math.round(rect.y - padding));
-        const image = await win.webContents.capturePage({
-          x,
-          y,
-          width: Math.round(rect.width + padding * 2),
-          height: Math.round(rect.height + padding * 2),
-        });
-        if (!image.isEmpty()) return image.toDataURL();
-      } catch {
-        /* 截图失败继续尝试其它方式 */
-      }
-    }
-    if (fullFallback) {
-      try {
-        const image = await win.webContents.capturePage();
-        if (!image.isEmpty()) return image.toDataURL();
-      } catch {
-        /* 页面可能已经关闭 */
-      }
+    if (!rect || rect.width < 80 || rect.height < 80) return "";
+    try {
+      const padding = 8;
+      const x = Math.max(0, Math.round(rect.x - padding));
+      const y = Math.max(0, Math.round(rect.y - padding));
+      const image = await win.webContents.capturePage({
+        x,
+        y,
+        width: Math.round(rect.width + padding * 2),
+        height: Math.round(rect.height + padding * 2),
+      });
+      if (!image.isEmpty() && isQrImage(image)) return image.toDataURL();
+    } catch {
+      /* 截图失败时返回空，交给调用方提示手动扫码 */
     }
     return "";
   }

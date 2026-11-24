@@ -33,7 +33,12 @@ const state = {
   cloud: null,
   cardStyles: [],
   cardStyle: "",
+  cardLayout: "stack",
+  cardPalette: "default",
+  sketchVariant: 0,
   designStyles: [],
+  designSamples: [],
+  candidates: [],
   cardOptions: { styles: [], layouts: [], palettes: [], backend: {} },
   styleError: "",
   paidError: "",
@@ -2064,6 +2069,7 @@ function renderCompliance() {
 
 function renderMedia() {
   const grid = $("#media-grid");
+  if (renderCandidatesView(grid)) return;
   const images = state.studio.images;
   const info = studioPlatformInfo();
   const spec = studioSpec();
@@ -2474,6 +2480,9 @@ function setEngineBadge() {
   } else if (llm && llm.configured) {
     badgeNode.className = "engine-badge ok";
     badgeNode.textContent = "模型就绪";
+  } else if (llm && llm.offline_only) {
+    badgeNode.className = "engine-badge warn";
+    badgeNode.textContent = "离线模板";
   } else {
     badgeNode.className = "engine-badge warn";
     badgeNode.textContent = "账号不可用";
@@ -3922,7 +3931,7 @@ async function generateCards() {
     const pages = plan ? Number(plan.pages) || 0 : 0;
     const max = plan ? Number(plan.max_images) || pages : cap.max || 0;
     const expected = plan && plan.art ? 1 : pages ? Math.min(pages, max) : cap.count;
-    const body = { style: styleValue };
+    const body = { style: styleValue, layout: state.cardLayout, palette: state.cardPalette, variant: state.sketchVariant };
     /* 页数没超上限就不传 limit，让后端按实际页数全出；超了才显式截断。 */
     if (pages && max && pages > max) body.limit = max;
     const draft = await api(`/api/drafts/${state.studio.draftId}/design-cards`, {
@@ -8973,6 +8982,27 @@ function bindEvents() {
   $("#btn-publish-now").addEventListener("click", () => publishStudio("publish"));
   $("#btn-save-platform-draft").addEventListener("click", () => publishStudio("draft"));
   $("#btn-cards-free").addEventListener("click", generateCards);
+  $("#btn-reshuffle").addEventListener("click", reshuffleSketch);
+  $("#btn-candidates").addEventListener("click", generateCandidates);
+  const segLayout = $("#seg-layout");
+  if (segLayout) {
+    segLayout.addEventListener("click", (event) => {
+      const node = event.target.closest("[data-layout]");
+      if (!node) return;
+      state.cardLayout = node.dataset.layout;
+      renderV2Options();
+      scheduleCardPlan();
+    });
+  }
+  const segPalette = $("#seg-palette");
+  if (segPalette) {
+    segPalette.addEventListener("click", (event) => {
+      const node = event.target.closest("[data-palette]");
+      if (!node) return;
+      state.cardPalette = node.dataset.palette;
+      renderV2Options();
+    });
+  }
   $("#btn-motion").addEventListener("click", generateMotion);
   $("#btn-cards-paid").addEventListener("click", generatePaidCards);
   $("#media-tabs").addEventListener("click", (event) => {
@@ -9504,6 +9534,8 @@ async function boot() {
   } finally {
     verifyCardStyleUi();
   }
+  // 样张后台慢慢生成：先出界面，样张好了再回填风格卡片。
+  loadDesignSamples();
   setInterval(refreshUpdate, 6 * 60 * 60 * 1000);
   setInterval(() => refreshOverview().catch(reportBackgroundError), 30000);
   setInterval(() => refreshNotifications({ silent: true }), 60000);
@@ -9664,18 +9696,29 @@ function renderCardStyleGrid() {
   const grid = $("#card-style-grid");
   if (!grid) return;
   const groups = [
+    { key: "info", label: "实用信息流" },
     { key: "new", label: "新版模板" },
     { key: "classic", label: "经典模板" },
     { key: "art", label: "手绘插画" },
   ];
+  const sampleFor = (key) => {
+    const list = state.designSamples.filter((s) => s.style === key);
+    const found = list.find((s) => s.layout === "stack") || list[0];
+    return found ? found.url : "";
+  };
   const chip = (item) => {
     const colors = Array.isArray(item.colors) ? item.colors : [];
     const dot = colors[2] || colors[1] || "var(--accent)";
+    const sample = sampleFor(item.key);
+    const thumb = sample
+      ? `<span class="style-thumb"><img src="${esc(sample)}" alt="" loading="lazy"></span>`
+      : `<span class="style-thumb style-thumb-fallback" style="background:${esc(colors[0] || "var(--surface)")};color:${esc(dot)}">${esc((item.name || "?").slice(0, 1))}</span>`;
+    const sub = item.fit ? `<small>${esc(item.fit)}</small>` : "";
     return `
     <button class="style-chip${item.key === state.cardStyle ? " active" : ""}" type="button"
       role="radio" aria-checked="${item.key === state.cardStyle}" data-key="${esc(item.key)}">
-      <span class="style-dot" style="background:${esc(dot)}"></span>
-      <span class="style-chip-text"><b>${esc(item.name)}</b></span>
+      ${thumb}
+      <span class="style-chip-text"><b>${esc(item.name)}</b>${sub}</span>
     </button>`;
   };
   grid.innerHTML =
@@ -9693,6 +9736,7 @@ function renderCardStyleGrid() {
   grid.querySelectorAll(".style-chip").forEach((node) => {
     node.addEventListener("click", () => {
       state.cardStyle = node.dataset.key;
+      state.sketchVariant = 0;
       grid.querySelectorAll(".style-chip").forEach((item) => {
         const active = item.dataset.key === state.cardStyle;
         item.classList.toggle("active", active);
@@ -9718,6 +9762,178 @@ function syncCardStyleHint() {
   hint.textContent = design
     ? `${design.name} · ${design.desc}（本机渲染，不调用付费接口）`
     : "本机渲染，不调用付费接口。";
+  renderV2Options();
+}
+
+/* ===== M1 出图 2.0：样张 / 版式与调色板选择 / 多候选 ===== */
+
+function isV2Style(item) {
+  return Boolean(item && Array.isArray(item.layouts) && item.layouts.length);
+}
+
+/* M2 手绘风格：key 以 sk- 开头；支持「换一张构图」（variant 换种子）。 */
+function isSketchStyleKey(key) {
+  return String(key || "").slice(0, 3) === "sk-";
+}
+
+function syncSketchButton() {
+  const btn = $("#btn-reshuffle");
+  if (btn) btn.hidden = !isSketchStyleKey(state.cardStyle);
+}
+
+async function reshuffleSketch() {
+  if (!isSketchStyleKey(state.cardStyle)) {
+    toast("当前模板没有随机构图，选一个手绘风格再试", true);
+    return;
+  }
+  state.sketchVariant += 1;
+  await generateCards();
+}
+
+function currentDesignStyle() {
+  return state.designStyles.find((item) => item.key === state.cardStyle) || null;
+}
+
+function renderV2Options() {
+  syncSketchButton();
+  const box = $("#v2-options");
+  if (!box) return;
+  const design = currentDesignStyle();
+  if (!isV2Style(design)) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const layouts = design.layouts.length ? design.layouts : ["hero", "stack", "split", "strip"];
+  const layoutNames = { hero: "单图大标题", stack: "上下图文", split: "左右分栏", strip: "长图分页" };
+  const paletteNames = { default: "默认", warm: "暖调", cool: "冷调" };
+  const segLayout = $("#seg-layout");
+  const segPalette = $("#seg-palette");
+  if (segLayout) {
+    segLayout.innerHTML = layouts
+      .map((key) => `<button class="seg-item${key === state.cardLayout ? " active" : ""}" type="button" role="radio" aria-checked="${key === state.cardLayout}" data-layout="${esc(key)}">${esc(layoutNames[key] || key)}</button>`)
+      .join("");
+  }
+  if (segPalette) {
+    const palettes = Array.isArray(design.palette_keys) && design.palette_keys.length
+      ? design.palette_keys
+      : ["default"];
+    segPalette.innerHTML = palettes
+      .map((key) => `<button class="seg-item${key === state.cardPalette ? " active" : ""}" type="button" role="radio" aria-checked="${key === state.cardPalette}" data-palette="${esc(key)}">${esc(paletteNames[key] || key)}</button>`)
+      .join("");
+  }
+}
+
+async function loadDesignSamples() {
+  try {
+    const items = await api("/api/design/samples");
+    state.designSamples = Array.isArray(items) ? items : [];
+    renderCardStyleGrid();
+  } catch (error) {
+    console.warn("[样张] 加载失败，先用色块占位", error);
+  }
+}
+
+async function generateCandidates() {
+  clearErrorBox("#media-error");
+  const values = studioValues();
+  const cap = mediaCapability();
+  if (cap.kind === "video") {
+    toast("视频内容不生成图文配图，先切到「图文」再试", true);
+    return;
+  }
+  if (!values.title || !values.desc) {
+    toast("先有标题和正文，再生成候选", true);
+    return;
+  }
+  const button = $("#btn-candidates");
+  setButtonLoading(button, true, "出 3 版中");
+  try {
+    if (!state.studio.draftId) {
+      await persistStudio({ silent: true });
+    }
+    const plan = await loadCardPlan(true);
+    const pages = plan ? Number(plan.pages) || 0 : 0;
+    const max = plan ? Number(plan.max_images) || pages : cap.max || 0;
+    const body = { mode: "candidates" };
+    if (pages && max && pages > max) body.limit = max;
+    const result = await api(`/api/drafts/${state.studio.draftId}/design-cards`, {
+      method: "POST",
+      body,
+    });
+    state.candidates = Array.isArray(result.candidates) ? result.candidates : [];
+    renderMedia();
+    toast(
+      state.candidates.length
+        ? `已出 ${state.candidates.length} 版候选，点「选用」设为正式配图`
+        : "候选生成失败，请重试"
+    );
+  } catch (error) {
+    showErrorBox("#media-error", error);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+/**
+ * 候选并排预览：直接占用媒体预览区（#media-grid）的位置，
+ * 点「选用」后清空候选、恢复正式配图展示。
+ */
+function renderCandidatesView(grid) {
+  if (!grid) return false;
+  if (!state.candidates.length) {
+    grid.classList.remove("candidates-mode");
+    return false;
+  }
+  const layoutNames = { hero: "单图大标题", stack: "上下图文", split: "左右分栏", strip: "长图分页" };
+  grid.classList.add("candidates-mode");
+  grid.innerHTML = state.candidates
+    .map((cand, index) => {
+      const cover = (cand.images || [])[0] || "";
+      const url = cover ? mediaUrl(cover) : "";
+      return `
+      <div class="cand-card">
+        <div class="cand-cover">
+          ${url ? `<img src="${esc(url)}" alt="${esc(cand.name)}" loading="lazy">` : '<div class="cand-empty">未出图</div>'}
+          <span class="cand-index">候选 ${index + 1}</span>
+        </div>
+        <div class="cand-meta"><b>${esc(cand.name)}</b>
+          <span>${esc(cand.tagline)} · ${esc(layoutNames[cand.layout] || cand.layout)} · ${(cand.images || []).length} 张</span></div>
+        <button class="btn small primary block" type="button" data-cand="${index}">选用这一版</button>
+      </div>`;
+    })
+    .join("");
+  grid.querySelectorAll("[data-cand]").forEach((node) => {
+    node.addEventListener("click", () => selectCandidate(Number(node.dataset.cand)));
+  });
+  return true;
+}
+
+async function selectCandidate(index) {
+  const cand = state.candidates[index];
+  if (!cand) return;
+  if (!state.studio.draftId) {
+    await persistStudio({ silent: true });
+  }
+  try {
+    const draft = await api(`/api/drafts/${state.studio.draftId}/design-candidate/select`, {
+      method: "POST",
+      body: { style: cand.style, layout: cand.layout, palette: cand.palette },
+    });
+    state.studio.images = (draft.images || []).slice();
+    state.studio.dirty = false;
+    state.cardStyle = cand.style;
+    state.cardLayout = cand.layout || "stack";
+    state.cardPalette = cand.palette || "default";
+    state.candidates = [];
+    refreshStudioUI();
+    renderCardStyleGrid();
+    syncCardStyleHint();
+    toast(`已选用「${cand.name}」`);
+    await refreshOverview();
+  } catch (error) {
+    showErrorBox("#media-error", error);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", boot);

@@ -126,19 +126,33 @@ DESIGN_STYLES: list[dict[str, Any]] = [
 
 
 def list_design_styles() -> list[dict[str, Any]]:
-    return [
+    items = [
         {**dict(item), "wide": True, "canvas": design_canvas("wechat_mp")}
         for item in DESIGN_STYLES
     ]
+    for item in V2_STYLES:
+        items.append(
+            {
+                **dict(item),
+                "wide": True,
+                "canvas": design_canvas("wechat_mp"),
+                "layouts": [row["key"] for row in DESIGN_LAYOUTS],
+                "palette_keys": sorted(V2_PALETTE_KEYS),
+            }
+        )
+    return items
 
 
 def _style_keys() -> set[str]:
-    return {item["key"] for item in DESIGN_STYLES}
+    return {item["key"] for item in DESIGN_STYLES} | V2_STYLE_KEYS
 
 
 def design_style(key: str) -> dict[str, Any]:
     """按 key 取模板信息；未知 key 回落到第一套，避免接口返回空模板名。"""
     for item in DESIGN_STYLES:
+        if item["key"] == key:
+            return dict(item)
+    for item in V2_STYLES:
         if item["key"] == key:
             return dict(item)
     return dict(DESIGN_STYLES[0])
@@ -1631,8 +1645,12 @@ def render_design_html(
     style: str,
     seed: str = "default",
     canvas: str = "portrait",
+    layout: str = "stack",
+    palette: str = "default",
 ) -> str:
     """渲染单页 HTML。``canvas="wide"`` 时使用 1080×460 宽幅封面版式。"""
+    if style in V2_STYLE_KEYS:
+        return render_v2_html(page, style, seed, canvas, layout, palette)
     style = style if style in _style_keys() else "memo"
     wide = canvas == "wide"
     width, height = (WIDE_WIDTH, WIDE_HEIGHT) if wide else (WIDTH, HEIGHT)
@@ -1686,6 +1704,11 @@ _LAYOUT_SELECTORS = [
     ".meta", ".w-side .toc .pill",
     # 索引墨内容页：序号列与条目正文
     ".ink .no", ".ink .item b",
+    # V2 出图 2.0（风格 × 版式）
+    ".v-kicker", ".v-title", ".v-sub", ".v-sec",
+    ".v-item", ".v-toc .v-row", ".v-side .v-sec", ".v-side .v-page",
+    ".v-line", ".v-end .v-big", ".v-end .v-note", ".v-tags .v-tag",
+    ".v-foot", ".w-band .w-title", ".w-mark", ".w-sub",
 ]
 
 _LAYOUT_PROBE = """<script>
@@ -1718,7 +1741,8 @@ _LAYOUT_PROBE = """<script>
     out.push({
       t: text.slice(0, 36),
       c: String(el.className || "").slice(0, 40),
-      x: box.x, y: box.y, w: box.w, h: box.h
+      x: box.x, y: box.y, w: box.w, h: box.h,
+      fs: parseFloat(st.fontSize) || 0
     });
   }
   var pre = document.createElement("pre");
@@ -1820,20 +1844,38 @@ def _inside(inner: dict[str, Any], outer: dict[str, Any]) -> bool:
     )
 
 
+_LABEL_CLASS_HINTS = ("v-no", "v-kicker", "w-mark", "v-foot", "v-tag", "v-page", "chip", "brand", "stamp", "pageno")
+
+
 def _check_blocks(
     blocks: list[dict[str, Any]], canvas: str = "portrait"
-) -> list[str]:
+) -> tuple[list[str], list[str]]:
+    """版式体检：返回 (errors, warnings)。
+
+    errors 拦截出图（越界/重叠/字号低于可读下限）；warnings 只提示不强拦
+    （字号偏小/留白过多/头重脚轻/单页过密），对齐 UPGRADE-PLAN「先告警后强制」。
+    """
     width, height = (
         (WIDE_WIDTH, WIDE_HEIGHT) if canvas == "wide" else (WIDTH, HEIGHT)
     )
-    issues: list[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
     for block in blocks:
         left, top = float(block["x"]), float(block["y"])
         right, bottom = left + float(block["w"]), top + float(block["h"])
         if left < _SAFE["left"] - 0.5 or top < _SAFE["top"] - 0.5:
-            issues.append(f"「{block['t']}」越过左上安全边距 ({left:.0f},{top:.0f})")
+            errors.append(f"「{block['t']}」越过左上安全边距 ({left:.0f},{top:.0f})")
         if right > width - _SAFE["right"] + 0.5 or bottom > height - _SAFE["bottom"] + 0.5:
-            issues.append(f"「{block['t']}」越过右下安全边距 ({right:.0f},{bottom:.0f})")
+            errors.append(f"「{block['t']}」越过右下安全边距 ({right:.0f},{bottom:.0f})")
+        font_size = float(block.get("fs") or 0)
+        if font_size:
+            # 字号量级先走「告警观察」模式（UPGRADE-PLAN 风险对策）：
+            # 不拦截出图，积累一周数据后再评估切强制。
+            label_like = any(hint in str(block.get("c") or "") for hint in _LABEL_CLASS_HINTS)
+            if font_size < 24:
+                warnings.append(f"「{block['t']}」字号 {font_size:.0f}px 低于建议下限 24px")
+            elif font_size < 32 and not label_like:
+                warnings.append(f"「{block['t']}」字号 {font_size:.0f}px 偏小（正文建议 ≥32px）")
     for i in range(len(blocks)):
         for j in range(i + 1, len(blocks)):
             a, b = blocks[i], blocks[j]
@@ -1842,14 +1884,30 @@ def _check_blocks(
             overlap_x = min(a["x"] + a["w"], b["x"] + b["w"]) - max(a["x"], b["x"])
             overlap_y = min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"])
             if overlap_x > 1 and overlap_y > 1 and overlap_x * overlap_y > 6:
-                issues.append(
+                errors.append(
                     f"「{a['t']}」与「{b['t']}」重叠 {overlap_x * overlap_y:.0f}px²"
                 )
-    return issues
+    if blocks and not errors:
+        top = min(float(b["y"]) for b in blocks)
+        bottom = max(float(b["y"]) + float(b["h"]) for b in blocks)
+        coverage = (bottom - top) / height
+        if coverage < 0.5:
+            warnings.append(f"内容纵向只占画布 {coverage:.0%}，留白偏多")
+        pad_top = top
+        pad_bottom = height - bottom
+        if pad_bottom > pad_top * 2.5 and pad_bottom > 240:
+            warnings.append("底部留白明显大于顶部，版面头重脚轻")
+    if len(blocks) > 16:
+        warnings.append(f"单页文字块 {len(blocks)} 个偏多，建议拆分页面")
+    return errors, warnings
 
 
 def check_design_layout(
-    draft: dict[str, Any], style: str, platform: str = ""
+    draft: dict[str, Any],
+    style: str,
+    platform: str = "",
+    layout: str = "stack",
+    palette: str = "default",
 ) -> list[dict[str, Any]]:
     """对一套风格的全部页面做版式自检，返回每页结果（供批量验收）。
 
@@ -1865,15 +1923,17 @@ def check_design_layout(
     for page in pages:
         slug = f"{page['index']:02d}-{page['type']}"
         seed = f"{RENDERER}:{draft['id']}-{style}-check:{page['index']}:{mode}"
-        blocks = _layout_blocks(render_design_html(page, style, seed, mode), mode)
-        issues = _check_blocks(blocks, mode)
+        html_text = render_design_html(page, style, seed, mode, layout, palette)
+        blocks = _layout_blocks(html_text, mode)
+        errors, warnings = _check_blocks(blocks, mode)
         report.append(
             {
                 "page": slug,
                 "canvas": mode,
                 "blocks": len(blocks),
-                "ok": not issues,
-                "issues": issues,
+                "ok": not errors,
+                "issues": errors,
+                "warnings": warnings,
             }
         )
     return report
@@ -1885,6 +1945,8 @@ def render_design_cards(
     variant: int | None = None,
     limit: int | None = None,
     platform: str = "",
+    layout: str = "stack",
+    palette: str = "default",
 ) -> list[str]:
     """按平台出图：公众号走 2.35:1 宽幅封面（只出 1 张），其余保持 3:4 竖版。"""
     if style not in _style_keys():
@@ -1901,6 +1963,10 @@ def render_design_cards(
             (json.dumps(content_json, ensure_ascii=False), int(draft["id"])),
         )
         return images
+    if style in V2_STYLE_KEYS:
+        return _render_v2_cards(
+            draft, style, layout, palette, variant, limit, platform
+        )
     canvas = design_canvas(platform or draft.get("platform") or "")
     wide = canvas["key"] == "wide"
     source = draft
@@ -1942,13 +2008,17 @@ def render_design_cards(
             if image_path.exists() and meta.get(slug) == signature:
                 logger.info("复用设计卡片: {}", image_path.name)
             else:
-                issues = _check_blocks(
+                errors, warnings = _check_blocks(
                     _layout_blocks(html_text, canvas["key"]), canvas["key"]
                 )
-                if issues:
+                if warnings:
+                    logger.warning(
+                        "版式体检提示（{}/{}）：{}", style, slug, "；".join(warnings)
+                    )
+                if errors:
                     raise RuntimeError(
                         f"版式自检失败（{style}/{slug}，第 {page['index']}/{len(pages)} 页）："
-                        + "；".join(issues[:4])
+                        + "；".join(errors[:4])
                         + "。本次整组未保存，草稿仍保留上一次的配图。"
                     )
                 _shoot(
@@ -1979,4 +2049,730 @@ def render_design_cards(
         encoding="utf-8",
     )
     return results
+
+
+# ---------------------------------------------------------------------------
+# M1 出图体系 2.0：风格（视觉语言）× 版式（信息排布）正交模板引擎
+#
+# 风格只描述「视觉 token」（底色/墨色/点睛色/字体/装饰），版式只描述
+# 「信息结构」（单图大标题/上下图文/左右分栏/长图分页），两者自由组合。
+# 首批 6 风格定位「实用信息流」（docs/UPGRADE-PLAN.md M1 决策记录）。
+# ---------------------------------------------------------------------------
+
+DESIGN_LAYOUTS: list[dict[str, Any]] = [
+    {
+        "key": "hero",
+        "name": "单图大标题",
+        "desc": "一图一件事，超大标题承载全部信息，适合封面与公告",
+    },
+    {"key": "stack", "name": "上下图文", "desc": "标题在上、条目纵向展开，最通用的正文版式"},
+    {"key": "split", "name": "左右分栏", "desc": "左栏标题编号、右栏条目，双栏对照阅读"},
+    {"key": "strip", "name": "长图分页", "desc": "连续行式条目铺满版心，适合多要点长文"},
+]
+
+
+def list_design_layouts() -> list[dict[str, Any]]:
+    return [dict(item) for item in DESIGN_LAYOUTS]
+
+
+# 6 风格 token：colors 供前端色点展示；palettes 是出图用的三套调色板
+# （default/warm/cool），字段 bg/ink/accent/soft 全部注入 CSS 变量。
+V2_STYLES: list[dict[str, Any]] = [
+    {
+        "key": "knowledge",
+        "name": "知识卡片",
+        "tagline": "Knowledge Card",
+        "desc": "米白底、深墨正文、单点蓝强调，编号要点层级清晰",
+        "fit": "概念解释、干货整理、读书笔记",
+        "colors": ["#FAF7F0", "#1F2937", "#2563EB"],
+        "temperature": "neutral",
+        "group": "info",
+        "font": '"Microsoft YaHei","PingFang SC",sans-serif',
+        "palettes": {
+            "default": {"bg": "#FAF7F0", "ink": "#1F2937", "accent": "#2563EB", "soft": "#EAE4D6"},
+            "warm": {"bg": "#FBF3E7", "ink": "#3B2F23", "accent": "#D97706", "soft": "#F0E4CF"},
+            "cool": {"bg": "#F2F6FA", "ink": "#1E2A38", "accent": "#0E7490", "soft": "#DCE7F0"},
+        },
+    },
+    {
+        "key": "steps",
+        "name": "步骤清单",
+        "tagline": "Step List",
+        "desc": "白底粗黑字、橙色编号徽章，一步一步照着做",
+        "fit": "教程、操作指南、检查清单",
+        "colors": ["#FFFFFF", "#17181C", "#F97316"],
+        "temperature": "neutral",
+        "group": "info",
+        "font": '"Microsoft YaHei","PingFang SC",sans-serif',
+        "palettes": {
+            "default": {"bg": "#FFFFFF", "ink": "#17181C", "accent": "#F97316", "soft": "#FFEDD5"},
+            "warm": {"bg": "#FFF9F2", "ink": "#2A1D12", "accent": "#EA580C", "soft": "#FFE4C7"},
+            "cool": {"bg": "#F7FAFC", "ink": "#16232E", "accent": "#0284C7", "soft": "#DDEAF4"},
+        },
+    },
+    {
+        "key": "datachart",
+        "name": "数据信息图",
+        "tagline": "Data Sheet",
+        "desc": "浅灰白底、超大数字、涨绿跌红，一眼看到结论",
+        "fit": "数据结论、测评结果、榜单盘点",
+        "colors": ["#F8FAF9", "#0F172A", "#0E9F6E"],
+        "temperature": "neutral",
+        "group": "info",
+        "font": '"Helvetica Neue",Arial,"Microsoft YaHei",sans-serif',
+        "palettes": {
+            "default": {"bg": "#F8FAF9", "ink": "#0F172A", "accent": "#0E9F6E", "soft": "#DCE9E3"},
+            "warm": {"bg": "#FAF6F0", "ink": "#26201A", "accent": "#DC6803", "soft": "#EFE5D8"},
+            "cool": {"bg": "#F4F7FB", "ink": "#101A2B", "accent": "#2563EB", "soft": "#DEE8F5"},
+        },
+    },
+    {
+        "key": "versus",
+        "name": "对比测评",
+        "tagline": "Versus",
+        "desc": "左右对撞色块、居中 VS 徽章，优劣势一眼分清",
+        "fit": "产品对比、方案取舍、优劣势盘点",
+        "colors": ["#FDFDFB", "#111827", "#EA580C"],
+        "temperature": "bold",
+        "group": "info",
+        "font": '"Microsoft YaHei","PingFang SC",sans-serif',
+        "palettes": {
+            "default": {"bg": "#FDFDFB", "ink": "#111827", "accent": "#EA580C", "soft": "#FDE8DC"},
+            "warm": {"bg": "#FBF5EC", "ink": "#231A10", "accent": "#C2410C", "soft": "#F5E3D3"},
+            "cool": {"bg": "#F5F8FC", "ink": "#0F1B2D", "accent": "#1D4ED8", "soft": "#DEE7F6"},
+        },
+    },
+    {
+        "key": "poster",
+        "name": "大字公告",
+        "tagline": "Big Type",
+        "desc": "深底白字、超大标语、黄色强调线，三米外也能读完",
+        "fit": "活动公告、重要提醒、一句话观点",
+        "colors": ["#111318", "#FFFFFF", "#FFD447"],
+        "temperature": "bold",
+        "group": "info",
+        "font": '"Microsoft YaHei","PingFang SC",sans-serif',
+        "palettes": {
+            "default": {"bg": "#111318", "ink": "#FFFFFF", "accent": "#FFD447", "soft": "#2A2E38"},
+            "warm": {"bg": "#1D1210", "ink": "#FFF7EC", "accent": "#FF9F45", "soft": "#33231C"},
+            "cool": {"bg": "#0E1A24", "ink": "#EFF8FF", "accent": "#5EEAD4", "soft": "#1D2E3C"},
+        },
+    },
+    {
+        "key": "caption",
+        "name": "图注解读",
+        "tagline": "Caption Notes",
+        "desc": "浅灰底、宋体标题、细线分隔，安静耐看的注解风",
+        "fit": "长文注解、观点补充、慢读内容",
+        "colors": ["#F5F5F2", "#2D2A26", "#8A8F98"],
+        "temperature": "calm",
+        "group": "info",
+        "font": '"Songti SC","STSong","SimSun",Georgia,serif',
+        "palettes": {
+            "default": {"bg": "#F5F5F2", "ink": "#2D2A26", "accent": "#7C8188", "soft": "#E4E4DE"},
+            "warm": {"bg": "#F7F2EA", "ink": "#33291F", "accent": "#9A7B4F", "soft": "#EAE0D0"},
+            "cool": {"bg": "#F0F3F4", "ink": "#243036", "accent": "#5B7A8C", "soft": "#DEE6E9"},
+        },
+    },
+]
+
+V2_STYLE_KEYS: set[str] = {item["key"] for item in V2_STYLES}
+V2_LAYOUT_KEYS: set[str] = {item["key"] for item in DESIGN_LAYOUTS}
+V2_PALETTE_KEYS: set[str] = {"default", "warm", "cool"}
+
+
+def v2_style(key: str) -> dict[str, Any]:
+    for item in V2_STYLES:
+        if item["key"] == key:
+            return dict(item)
+    return dict(V2_STYLES[0])
+
+
+def _v2_palette(style: str, palette: str) -> dict[str, str]:
+    tokens = v2_style(style)
+    palettes = tokens.get("palettes") or {}
+    return dict(palettes.get(palette) or palettes["default"])
+
+
+# 骨架 CSS：全部颜色走 --bg/--ink/--accent/--soft 变量，由调色板注入。
+V2_CSS = """
+.v2{background:var(--bg);color:var(--ink);font-family:__FONT__}
+.v2 .v-kicker{position:absolute;left:84px;top:74px;font-size:24px;letter-spacing:.26em;
+color:var(--accent);font-weight:700;z-index:3}
+.v2 .v-foot{position:absolute;left:84px;right:84px;bottom:46px;display:flex;
+justify-content:space-between;font-size:24px;letter-spacing:.16em;opacity:.55;z-index:3}
+.v2 .v-rule{position:absolute;left:84px;right:84px;top:126px;height:3px;background:var(--ink);opacity:.16;z-index:2}
+
+/* —— hero 单图大标题 —— */
+.v2 .v-hero{position:absolute;left:84px;right:84px;top:250px}
+.v2 .v-title{font-size:112px;line-height:1.22;font-weight:800;letter-spacing:.01em}
+.v2 .v-sub{margin-top:34px;font-size:38px;line-height:1.62;color:var(--ink);opacity:.72}
+.v2 .v-toc{position:absolute;left:84px;right:84px;top:950px}
+.v2 .v-toc .v-row{display:flex;align-items:baseline;gap:16px;font-size:32px;line-height:1.9;color:var(--ink);opacity:.82}
+.v2 .v-toc .v-row b{color:var(--accent);font-size:28px}
+.v2 .v-toc .v-row i{flex:1;border-bottom:2px dashed var(--soft);transform:translateY(-8px)}
+
+/* —— stack 上下图文 —— */
+.v2 .v-head{position:absolute;left:84px;right:84px;top:170px}
+.v2 .v-sec{font-size:54px;font-weight:800;line-height:1.3}
+.v2 .v-sec small{display:block;margin-top:10px;font-size:26px;letter-spacing:.2em;color:var(--accent);font-weight:700}
+.v2 .v-list{position:absolute;left:84px;right:84px;top:400px;bottom:150px;display:flex;flex-direction:column;justify-content:space-evenly}
+.v2 .v-item{display:flex;gap:26px;align-items:flex-start;font-size:40px;line-height:1.55;font-weight:600}
+.v2 .v-item .v-no{flex:none;min-width:74px;height:74px;border-radius:18px;background:var(--accent);color:var(--bg);
+display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800}
+.v2 .v-item p{flex:1}
+
+/* —— split 左右分栏 —— */
+.v2 .v-side{position:absolute;left:0;top:0;bottom:0;width:352px;background:var(--soft);padding:150px 44px 0}
+.v2 .v-side .v-sec{font-size:46px}
+.v2 .v-side .v-page{margin-top:26px;font-size:24px;letter-spacing:.2em;color:var(--accent);font-weight:700}
+.v2 .v-main{position:absolute;left:420px;right:84px;top:190px;bottom:150px;display:flex;flex-direction:column;justify-content:space-evenly}
+.v2 .v-main .v-item{font-size:37px;line-height:1.55}
+.v2 .v-main .v-item .v-no{min-width:64px;height:64px;border-radius:14px;font-size:28px}
+
+/* —— strip 长图分页 —— */
+.v2 .v-strip{position:absolute;left:84px;right:84px;top:318px;bottom:150px;display:flex;flex-direction:column;justify-content:space-evenly}
+.v2 .v-strip .v-line{display:flex;gap:22px;align-items:baseline;border-bottom:2px solid var(--soft);padding-bottom:26px}
+.v2 .v-strip .v-line:last-child{border-bottom:none}
+.v2 .v-strip .v-no{flex:none;font-size:34px;font-weight:800;color:var(--accent);min-width:64px}
+.v2 .v-strip .v-line p{flex:1;font-size:34px;line-height:1.5;font-weight:500}
+
+/* —— ending 结尾页 —— */
+.v2 .v-end{position:absolute;left:84px;right:84px;top:420px}
+.v2 .v-end .v-big{font-size:76px;line-height:1.4;font-weight:800}
+.v2 .v-end .v-note{margin-top:40px;font-size:36px;line-height:1.6;opacity:.72}
+.v2 .v-tags{position:absolute;left:84px;right:84px;top:1010px;display:flex;gap:18px;flex-wrap:wrap}
+.v2 .v-tags .v-tag{border:2px solid var(--accent);color:var(--accent);border-radius:999px;
+padding:12px 30px;font-size:26px;font-weight:700}
+
+/* —— 公众号 2.35:1 宽幅封面 —— */
+.v2 .w-band{position:absolute;left:84px;right:84px;top:96px;display:flex;align-items:center;gap:44px}
+.v2 .w-band .w-title{flex:1;font-size:72px;line-height:1.25;font-weight:800}
+.v2 .w-band .w-mark{flex:none;font-size:24px;letter-spacing:.3em;color:var(--accent);font-weight:800;
+border:3px solid var(--accent);border-radius:14px;padding:16px 22px;text-align:center;line-height:1.5}
+.v2 .w-sub{position:absolute;left:84px;right:84px;top:300px;font-size:32px;line-height:1.55;opacity:.72}
+"""
+
+# 每风格一点个性装饰：低调、纯 CSS、不引入图片。
+V2_STYLE_CSS = {
+    "knowledge": """
+.v2.knowledge .v-deco{position:absolute;right:-120px;top:-120px;width:340px;height:340px;border-radius:50%;
+border:26px solid var(--soft);z-index:1}
+""",
+    "steps": """
+.v2.steps .v-deco{position:absolute;left:84px;right:84px;top:118px;height:8px;background:var(--accent);opacity:.9;z-index:2}
+.v2.steps .v-item .v-no{border-radius:50%}
+""",
+    "datachart": """
+.v2.datachart .v-deco{position:absolute;right:84px;top:74px;display:flex;gap:10px;align-items:flex-end;z-index:2}
+.v2.datachart .v-deco i{display:block;width:22px;background:var(--accent);opacity:.85;border-radius:4px 4px 0 0}
+.v2.datachart .v-deco i:nth-child(1){height:26px}.v2.datachart .v-deco i:nth-child(2){height:44px}
+.v2.datachart .v-deco i:nth-child(3){height:34px}.v2.datachart .v-deco i:nth-child(4){height:58px}
+""",
+    "versus": """
+.v2.versus .v-deco{position:absolute;left:50%;top:150px;bottom:140px;width:3px;margin-left:-1px;
+background:var(--ink);opacity:.14;z-index:1}
+.v2.versus .v-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+background:var(--accent);color:#fff;font-size:30px;font-weight:800;border-radius:50%;
+width:104px;height:104px;display:flex;align-items:center;justify-content:center;letter-spacing:.05em}
+""",
+    "poster": """
+.v2.poster{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 26px)}
+.v2.poster .v-title{text-shadow:0 10px 0 rgba(0,0,0,.28)}
+.v2.poster .v-rule{background:var(--accent);opacity:1;height:6px}
+""",
+    "caption": """
+.v2.caption .v-rule{height:1px;opacity:.4}
+.v2.caption .v-title{font-weight:700}
+.v2.caption .v-item{font-weight:400}
+.v2.caption .v-deco{position:absolute;left:84px;top:70px;font-size:22px;letter-spacing:.3em;opacity:.5;z-index:3}
+""",
+}
+
+
+def _v2_font(base: str) -> str:
+    """与 _font 同规则：正文走设计字体，emoji 交给系统彩色字体。"""
+    for generic in ("sans-serif", "monospace", "serif"):
+        if base.endswith(generic):
+            return f"{base[:-len(generic)]}{EMOJI_FONTS},{generic}"
+    return f"{base},{EMOJI_FONTS}"
+
+
+def _v2_deco(style: str) -> str:
+    if style == "datachart":
+        return '<div class="v-deco"><i></i><i></i><i></i><i></i></div>'
+    return '<div class="v-deco"></div>'
+
+
+def _v2_items(d: dict[str, Any], start: int = 1) -> str:
+    rows = []
+    for offset, item in enumerate(d.get("items") or []):
+        text = _esc(_item_text(item))
+        rows.append(
+            f'<div class="v-item"><span class="v-no">{start + offset:02d}</span>'
+            f"<p>{text}</p></div>"
+        )
+    return "".join(rows)
+
+
+def _v2_toc(d: dict[str, Any], limit: int = 4) -> str:
+    rows = []
+    for row in (d.get("toc") or [])[:limit]:
+        rows.append(
+            f'<div class="v-row"><b>P{int(row.get("page") or 0):02d}</b>'
+            f"<span>{_esc(row.get('title'))}</span><i></i></div>"
+        )
+    return "".join(rows)
+
+
+def _v2_title_size(text: str, layout: str) -> int:
+    base = 118 if layout in ("hero", "strip") else 98
+    if not text:
+        return base
+    return _fit_title(str(text), base, width=880, max_lines=3)
+
+
+def _v2_cover(d: dict[str, Any], style: str, layout: str, t: dict[str, str], rng: random.Random) -> str:
+    title = _esc(d["title"])
+    size = _v2_title_size(str(d["title"]), layout)
+    tagline = v2_style(style)["tagline"]
+    head = (
+        f'<div class="v-kicker">ECHOQ · {tagline.upper()}</div>'
+        f'{_v2_deco(style)}<div class="v-rule"></div>'
+    )
+    foot = (
+        f'<div class="v-foot"><span>{_esc(tagline)} / 实用信息流</span>'
+        f'<span>P{d["index"]:02d} · {d["total"]:02d}</span></div>'
+    )
+    if layout == "split":
+        return (
+            f'{head}<div class="v-side"><div class="v-sec">{title}</div>'
+            f'<div class="v-page">COVER · P{d["index"]:02d}</div></div>'
+            f'<div class="v-main"><div class="v-sub" style="margin-top:0;font-size:40px">'
+            f"{_esc(d['lead'])}</div></div>{foot}"
+        )
+    title_html = f'<h1 class="v-title" style="font-size:{size}px">{title}</h1>'
+    toc = _v2_toc(d)
+    toc_html = f'<div class="v-toc">{toc}</div>' if toc else ""
+    return (
+        f"{head}<div class=\"v-hero\">{title_html}"
+        f"<div class=\"v-sub\">{_esc(d['lead'])}</div></div>{toc_html}{foot}"
+    )
+
+
+def _v2_content(d: dict[str, Any], style: str, layout: str, t: dict[str, str], rng: random.Random) -> str:
+    icon = str(d.get("subtitle") or "").strip()
+    heading = str(d.get("section") or "").strip()
+    head = (
+        f'<div class="v-kicker">ECHOQ · {v2_style(style)["tagline"].upper()}</div>'
+        f'{_v2_deco(style)}<div class="v-rule"></div>'
+    )
+    foot = (
+        f'<div class="v-foot"><span>{_esc(d["section"] or "要点")}</span>'
+        f'<span>P{d["index"]:02d} · {d["total"]:02d}</span></div>'
+    )
+    sec_html = (
+        f'<div class="v-sec">{_esc(heading)}'
+        f"<small>{_esc(icon)} SECTION {d['index'] - 1:02d}</small></div>"
+        if heading
+        else f'<div class="v-sec">要点<small>SECTION {d["index"] - 1:02d}</small></div>'
+    )
+    if layout == "split":
+        return (
+            f'{head}<div class="v-side">{sec_html}'
+            f'<div class="v-page">P{d["index"]:02d} / {d["total"]:02d}</div></div>'
+            f'<div class="v-main">{_v2_items(d)}</div>{foot}'
+        )
+    if layout == "strip":
+        lines = []
+        for offset, item in enumerate(d.get("items") or [], 1):
+            lines.append(
+                f'<div class="v-line"><span class="v-no">{offset:02d}</span>'
+                f"<p>{_esc(_item_text(item))}</p></div>"
+            )
+        # section 标题放进 v-head（绝对定位），否则流内块会从 (0,0) 铺满整页、触发越界体检。
+        return (
+            f'{head}<div class="v-head">{sec_html}</div>'
+            f'<div class="v-strip">{"".join(lines)}</div>{foot}'
+        )
+    # hero / stack 共用上下结构；hero 的标题与条目更大。
+    size = 46 if layout == "hero" else 40
+    items = _v2_items(d)
+    if layout == "hero":
+        items = items.replace('class="v-item"', f'class="v-item" style="font-size:{size}px"')
+    return (
+        f"{head}<div class=\"v-head\">{sec_html}</div>"
+        f'<div class="v-list">{items}</div>{foot}'
+    )
+
+
+def _v2_ending(d: dict[str, Any], style: str, layout: str, t: dict[str, str], rng: random.Random) -> str:
+    head = (
+        f'<div class="v-kicker">ECHOQ · {v2_style(style)["tagline"].upper()}</div>'
+        f'{_v2_deco(style)}<div class="v-rule"></div>'
+    )
+    foot = (
+        f'<div class="v-foot"><span>{_esc(v2_style(style)["tagline"])}</span>'
+        f'<span>P{d["index"]:02d} · {d["total"]:02d}</span></div>'
+    )
+    tags = "".join(
+        f'<span class="v-tag">{_esc(row.get("title"))}</span>'
+        for row in (d.get("toc") or [])[:3]
+    )
+    big = _fit_quote(str(d.get("subtitle") or "轮到你了"), 72, 880, max_lines=3)
+    return (
+        f'{head}<div class="v-end"><div class="v-big" style="font-size:{big}px">'
+        f"{_esc(d.get('subtitle'))}</div>"
+        f'<div class="v-note">{_esc(d.get("title"))}</div></div>'
+        f'<div class="v-tags">{tags}</div>{foot}'
+    )
+
+
+def _v2_wide_cover(d: dict[str, Any], t: dict[str, str], rng: random.Random) -> str:
+    title = _esc(d["title"])
+    size = _fit_wide_title(str(d["title"]), 68, width=760, max_lines=2)
+    return (
+        '<div class="w-band">'
+        f'<div class="w-title" style="font-size:{size}px">{title}</div>'
+        '<div class="w-mark">实用<br>信息流</div></div>'
+        f'<div class="w-sub">{_esc(d.get("lead") or d.get("subtitle"))}</div>'
+    )
+
+
+def _v2_body(page: dict[str, Any], style: str, layout: str, t: dict[str, str], rng: random.Random) -> str:
+    kind = page.get("type") or page.get("kind") or "content"
+    if kind == "cover":
+        return _v2_cover(page, style, layout, t, rng)
+    if kind == "ending":
+        return _v2_ending(page, style, layout, t, rng)
+    return _v2_content(page, style, layout, t, rng)
+
+
+def render_v2_html(
+    page: dict[str, Any],
+    style: str,
+    seed: str = "default",
+    canvas: str = "portrait",
+    layout: str = "stack",
+    palette: str = "default",
+) -> str:
+    """V2 引擎：风格 token × 版式骨架 × 调色板，渲染单页 HTML。"""
+    style = style if style in V2_STYLE_KEYS else "knowledge"
+    layout = layout if layout in V2_LAYOUT_KEYS else "stack"
+    palette = palette if palette in V2_PALETTE_KEYS else "default"
+    wide = canvas == "wide"
+    width, height = (WIDE_WIDTH, WIDE_HEIGHT) if wide else (WIDTH, HEIGHT)
+    rng = random.Random(seed)
+    page = dict(page)
+    if wide:
+        page["canvas"] = "wide"
+    d = _page_data(page)
+    tokens = v2_style(style)
+    t = _v2_palette(style, palette)
+    if wide:
+        body = _v2_wide_cover(d, t, rng)
+    else:
+        body = _v2_body(page, style, layout, t, rng)
+    css = (
+        BASE_CSS.replace("__W__", str(width)).replace("__H__", str(height))
+        + V2_CSS.replace("__FONT__", _v2_font(str(tokens["font"])))
+        + V2_STYLE_CSS[style]
+        + (
+            ".v2{--bg:%s;--ink:%s;--accent:%s;--soft:%s}"
+            % (t["bg"], t["ink"], t["accent"], t["soft"])
+        )
+    )
+    classes = f"page v2 {style} {layout}{' wide' if wide else ''}"
+    return f"""<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>{_esc(_title(page))} · {style}/{layout}</title>
+<style>{css}</style></head>
+<body><main class="{classes}">{body}</main></body></html>
+"""
+
+
+# ---------------------------------------------------------------------------
+# V2 渲染管线（缓存 → 体检 → 截图）+ 多候选 + 外观账本 + 样张
+# ---------------------------------------------------------------------------
+
+def _render_v2_cards(
+    draft: dict[str, Any],
+    style: str,
+    layout: str,
+    palette: str,
+    variant: int | None,
+    limit: int | None,
+    platform: str,
+) -> list[str]:
+    """V2 风格出图：与旧引擎同一套「缓存 → 体检 → 截图」流程。
+
+    目录按 ``v2-{style}`` 分开，文件名带 ``{layout}-{palette}`` 前缀，
+    同一风格的不同版式/调色板产物互不覆盖。
+    """
+    canvas = design_canvas(platform or draft.get("platform") or "")
+    wide = canvas["key"] == "wide"
+    source = draft
+    if wide or limit == 1:
+        desc = str(draft.get("desc") or "")
+        if len(desc) > 320:
+            source = dict(draft)
+            source["desc"] = desc[:320].rsplit("\n", 1)[0] or desc[:320]
+    pages = _design_pages(source)
+    if wide:
+        pages = pages[:1]
+    elif limit and limit > 0:
+        pages = pages[: int(limit)]
+    folder = config.DESIGN_DIR / f"draft-{int(draft['id'])}" / f"v2-{style}"
+    folder.mkdir(parents=True, exist_ok=True)
+    meta_path = folder / "meta.json"
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        meta = {}
+    run = int(variant) if variant is not None else int(meta.get("run") or 0) + 1
+    run = max(1, run)
+    prefix = f"{layout}-{palette}"
+    results: list[str] = []
+    with _LOCK:
+        for page in pages:
+            slug = f"{prefix}-{page['index']:02d}-{page['type']}"
+            seed = (
+                f"{RENDERER}:v2:{draft['id']}-{style}-{prefix}-{run}"
+                f":{page['index']}:{canvas['key']}"
+            )
+            html_text = render_v2_html(page, style, seed, canvas["key"], layout, palette)
+            signature = _signature(html_text, f"{style}/{prefix}")
+            html_path = folder / f"{slug}.html"
+            image_path = folder / f"{slug}.png"
+            html_path.write_text(html_text, encoding="utf-8")
+            if image_path.exists() and meta.get(slug) == signature:
+                logger.info("复用设计卡片: {}", image_path.name)
+            else:
+                errors, warnings = _check_blocks(
+                    _layout_blocks(html_text, canvas["key"]), canvas["key"]
+                )
+                if warnings:
+                    logger.warning(
+                        "版式体检提示（{}/{}）：{}", style, slug, "；".join(warnings)
+                    )
+                if errors:
+                    raise RuntimeError(
+                        f"版式自检失败（{style}/{slug}，第 {page['index']}/{len(pages)} 页）："
+                        + "；".join(errors[:4])
+                        + "。本次整组未保存，草稿仍保留上一次的配图。"
+                    )
+                _shoot(
+                    html_path,
+                    image_path,
+                    width=canvas["width"],
+                    height=canvas["height"],
+                )
+                meta[slug] = signature
+            results.append(str(image_path))
+    meta.update(
+        {
+            "run": run,
+            "style": style,
+            "layout": layout,
+            "palette": palette,
+            "style_name": v2_style(style)["name"],
+            "canvas": canvas,
+            "pages": len(pages),
+            "updated_at": int(__import__("time").time()),
+        }
+    )
+    meta_path.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return results
+
+
+# ---------------------------- 外观账本（M1 1.6） ---------------------------
+
+def ledger_record(
+    draft: dict[str, Any], style: str, layout: str, palette: str, platform: str = ""
+) -> None:
+    """外观账本：记录一次正式选用的风格组合，供后续推荐避开重复。"""
+    try:
+        db.execute(
+            "INSERT INTO design_ledger"
+            "(account_id, draft_id, platform, style, layout, palette, created_at) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (
+                int(draft["account_id"]) if draft.get("account_id") else None,
+                int(draft["id"]),
+                str(platform or draft.get("platform") or ""),
+                style,
+                layout,
+                palette,
+                int(__import__("time").time()),
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("外观账本写入失败: {}", exc)
+
+
+def ledger_recent(account_id: int | None, n: int = 8) -> list[dict[str, Any]]:
+    """某账号最近 N 次选用的风格组合（新→旧）；无账号时返回空。"""
+    if not account_id:
+        return []
+    try:
+        rows = db.query(
+            "SELECT style, layout, palette FROM design_ledger "
+            "WHERE account_id = ? ORDER BY created_at DESC LIMIT ?",
+            (int(account_id), int(n)),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("外观账本读取失败: {}", exc)
+        return []
+    return [dict(row) for row in rows]
+
+
+# ---------------------------- 多候选（M1 1.4） -----------------------------
+
+def render_design_candidates(
+    draft: dict[str, Any],
+    platform: str = "",
+    count: int = 3,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """一次出 N 套「风格 × 版式」候选；风格互不相同、版式互不相同。
+
+    选择时参考外观账本：近期用过的风格降权，连续两次同风格强制回避，
+    保证同账号连续出图不撞脸（对齐 huashu 外观账本机制）。
+    """
+    count = max(2, min(int(count or 3), 4))
+    recent = ledger_recent(draft.get("account_id"))
+    recent_styles = [str(row.get("style") or "") for row in recent]
+    rng = random.Random(f"cand:{draft['id']}")
+    combos = [(s["key"], l["key"]) for s in V2_STYLES for l in DESIGN_LAYOUTS]
+
+    def score(combo: tuple[str, str]) -> float:
+        value = rng.random()
+        style_key = combo[0]
+        if style_key in recent_styles:
+            value -= 4
+        if (
+            len(recent_styles) >= 2
+            and recent_styles[0] == style_key
+            and recent_styles[1] == style_key
+        ):
+            value -= 100
+        return value
+
+    chosen: list[tuple[str, str]] = []
+    used_styles: set[str] = set()
+    used_layouts: set[str] = set()
+    for combo in sorted(combos, key=score):
+        style_key, layout_key = combo
+        if style_key in used_styles or layout_key in used_layouts:
+            continue
+        chosen.append(combo)
+        used_styles.add(style_key)
+        used_layouts.add(layout_key)
+        if len(chosen) >= count:
+            break
+    candidates: list[dict[str, Any]] = []
+    for style_key, layout_key in chosen:
+        tokens = v2_style(style_key)
+        images = _render_v2_cards(
+            draft, style_key, layout_key, "default", None, limit, platform
+        )
+        candidates.append(
+            {
+                "style": style_key,
+                "name": tokens["name"],
+                "tagline": tokens["tagline"],
+                "temperature": tokens["temperature"],
+                "layout": layout_key,
+                "palette": "default",
+                "images": images,
+            }
+        )
+    return candidates
+
+
+def select_design_candidate(
+    draft: dict[str, Any],
+    style: str,
+    layout: str,
+    palette: str,
+    platform: str = "",
+) -> list[str]:
+    """用户点选候选：按同参数重渲染（命中缓存）并记入外观账本。"""
+    images = _render_v2_cards(draft, style, layout, palette, None, None, platform)
+    ledger_record(draft, style, layout, palette, platform)
+    return images
+
+
+# ---------------------------- 样张预览（M1 1.3） ---------------------------
+
+_SAMPLE_DRAFT = {
+    "id": 0,
+    "title": "3 个让笔记更清晰的方法",
+    "desc": (
+        "排版比文笔更影响完读率，这 3 个方法今天就能用\n"
+        "✨ 大标题只说一件事\n✅ 一眼就知道这篇讲什么\n✅ 不贪多，一页一个重点\n"
+        "✨ 每页最多三个要点\n✅ 超过三个就拆页\n✅ 条目控制在两行以内\n"
+        "✨ 留白也是信息\n✅ 密的地方读者会跳过\n🔍 结尾\n你最想先试哪一个？"
+    ),
+}
+
+
+def ensure_design_samples(force: bool = False) -> list[dict[str, Any]]:
+    """每个 V2 风格 × 版式渲染一张缩略样张（懒加载，落盘缓存）。"""
+    stamp_dir = config.DESIGN_DIR / "samples"
+    stamp_dir.mkdir(parents=True, exist_ok=True)
+    pages = _design_pages(_SAMPLE_DRAFT)
+    sample_page = {
+        "hero": pages[0],
+        "stack": pages[0],
+        "split": pages[1] if len(pages) > 1 else pages[0],
+        "strip": pages[1] if len(pages) > 1 else pages[0],
+    }
+    out: list[dict[str, Any]] = []
+    for style in V2_STYLES:
+        for layout in DESIGN_LAYOUTS:
+            key = f"{style['key']}-{layout['key']}"
+            path = stamp_dir / f"{key}.png"
+            if force or not path.exists():
+                html_text = render_v2_html(
+                    dict(sample_page[layout["key"]]),
+                    style["key"],
+                    f"sample:{key}",
+                    "portrait",
+                    layout["key"],
+                    "default",
+                )
+                with tempfile.TemporaryDirectory(prefix="ops-sample-") as tmp:
+                    html_path = Path(tmp) / "sample.html"
+                    raw_path = Path(tmp) / "raw.png"
+                    html_path.write_text(html_text, encoding="utf-8")
+                    try:
+                        _shoot(html_path, raw_path, width=WIDTH, height=HEIGHT)
+                        subprocess.run(
+                            ["ffmpeg", "-y", "-i", str(raw_path),
+                             "-vf", "scale=405:540", str(path)],
+                            check=True, capture_output=True, timeout=60,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("样张生成失败 {}: {}", key, exc)
+            if path.exists():
+                out.append(
+                    {
+                        "style": style["key"],
+                        "name": style["name"],
+                        "tagline": style["tagline"],
+                        "fit": style["fit"],
+                        "temperature": style["temperature"],
+                        "layout": layout["key"],
+                        "layout_name": layout["name"],
+                        "colors": style["colors"],
+                        "url": f"/designs/samples/{key}.png",
+                    }
+                )
+    return out
+
+
+
 

@@ -7875,7 +7875,7 @@ h3 { font-size: 15px; font-weight: 600; }
 /* 中栏：编辑 */
 #view-studio .editor-pane { padding: 0; }
 #view-studio .editor-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-#view-studio .editor-wrap { max-width: 760px; margin: 0 auto; padding: 18px 26px 30px; }
+#view-studio .editor-wrap { max-width: 100%; margin: 0 auto; padding: 18px 26px 30px; }
 #view-studio .editor-tags { margin: 0 0 12px; }
 #view-studio .editor-title {
   width: 100%;
@@ -7948,6 +7948,7 @@ h3 { font-size: 15px; font-weight: 600; }
 #view-studio .preview-tabs {
   margin-left: auto;
   display: flex;
+  flex-wrap: nowrap;
   gap: 2px;
   padding: 2px;
   border-radius: 6px;
@@ -7956,6 +7957,8 @@ h3 { font-size: 15px; font-weight: 600; }
 #view-studio .preview-tabs button {
   height: 24px;
   padding: 0 8px;
+  white-space: nowrap;
+  flex: 0 0 auto;
   border: 0;
   border-radius: 4px;
   background: transparent;
@@ -8022,16 +8025,19 @@ h3 { font-size: 15px; font-weight: 600; }
   background: #101010;
 }
 #view-studio .studio-resizer::before { width: 1px; height: 100%; background: var(--line); }
+#view-studio .preview-head { flex-wrap: nowrap; row-gap: 0; }
+#view-studio .preview-head .preview-tabs {
+  order: 0;
+  width: auto;
+  margin-left: auto;
+  justify-content: flex-start;
+}
 @media (max-width: 1280px) {
   #view-studio #btn-preview-all { display: none; }
   #view-studio .preview-pane .statusbar::after { display: none; }
-  #view-studio .preview-head { flex-wrap: nowrap; row-gap: 0; }
-  #view-studio .preview-head .preview-tabs {
-    order: 0;
-    width: auto;
-    margin-left: auto;
-    justify-content: flex-start;
-  }
+}
+/* 只有窗口特别窄时才把平台名收成图标，1280×800 这类常见尺寸仍显示完整名称。 */
+@media (max-width: 1080px) {
   #view-studio .preview-tabs button {
     width: 24px;
     padding: 0;
@@ -8259,15 +8265,26 @@ h3 { font-size: 15px; font-weight: 600; }
   min-height: 268px;
 }
 
-/* 预览机身在矮窗口里不越过手机框：屏幕内部滚动/裁切 */
+/* 预览机身：宽度只由预览区可用空间决定（容器查询单位），窗口放大缩小都等比变化，
+   手机框始终完整居中，不会顶出上边缘挡住状态栏/灵动岛。 */
+#view-studio .preview-pane > .preview-device {
+  container-type: size;
+  overflow: hidden;
+}
 #view-studio .preview-pane .phone {
-  max-height: calc(100vh - 190px);
+  width: min(100cqw, calc(100cqh * 0.462), 351px);
+  height: auto;
+  max-height: none;
+  aspect-ratio: 462 / 1000;
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
 }
 #view-studio .preview-pane .phone-screen {
   flex: 1 1 auto;
+  height: auto;
   min-height: 0;
+  aspect-ratio: auto;
   overflow: hidden;
 }
 
@@ -8496,4 +8513,143 @@ select,
 .selectable {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* ===== M1 出图 2.0：样张风格卡 / 版式调色板选择 / 多候选预览 ===== */
+
+.style-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin-bottom: 8px;
+}
+.style-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.style-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+}
+.style-grid .style-chip:has(.style-thumb) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 8px;
+}
+.style-grid .style-chip:has(.style-thumb) .style-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.style-grid .style-chip:has(.style-thumb) small {
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.v2-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px 0 2px;
+  padding: 12px;
+  border: 1px dashed var(--line, rgba(0, 0, 0, 0.12));
+  border-radius: 12px;
+  background: var(--surface-2, transparent);
+}
+.v2-options[hidden] { display: none; }
+.v2-options .style-picker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.v2-options .style-picker-row > label {
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.1em;
+}
+.v2-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.v2-seg button {
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.12));
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.v2-seg button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 候选并排预览：直接占用媒体预览区（#media-grid） */
+.media-grid.candidates-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.media-grid .cand-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 2px solid var(--accent, #2563eb);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+.media-grid .cand-cover {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.media-grid .cand-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+.cand-index {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(17, 19, 24, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.cand-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.cand-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 34px;
+}
+.cand-meta b { font-size: 13px; }
+.cand-meta span { font-size: 11px; color: var(--ink-3); }
+
+@media (max-width: 900px) {
+  .media-grid.candidates-mode { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

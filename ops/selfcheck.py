@@ -295,9 +295,13 @@ def run() -> int:
             for key in keys:
                 text = design_mod.render_design_html(cover, key, "selfcheck", "wide")
                 html_ok = html_ok and "width:1080px;height:460px" in text
+                # V2 引擎 class 为 "page v2 {style} {layout} wide"，按词匹配。
+                match = re.search(r'<main class="([^"]+)"', text)
+                classes = f" {match.group(1)} " if match else ""
                 mark_ok = (
                     mark_ok
-                    and f'class="page {key} wide"' in text
+                    and f" {key} " in classes
+                    and " wide " in classes
                     and "w-title" in text
                 )
             paper_ok = (
@@ -306,13 +310,14 @@ def run() -> int:
                 and design_mod.count_design_pages(fake, "xiaohongshu", "paper") == 5
             )
             # 同一坐标在宽幅越界、在竖版不越界，证明检查用的是新画布尺寸。
+            # _check_blocks 返回 (errors, warnings)，这里只看拦截级 errors。
             bounds_ok = bool(
                 design_mod._check_blocks(
                     [{"t": "宽幅越界", "x": 1000, "y": 200, "w": 120, "h": 40}], "wide"
-                )
+                )[0]
             ) and not design_mod._check_blocks(
                 [{"t": "竖版正常", "x": 900, "y": 200, "w": 120, "h": 40}], "portrait"
-            )
+            )[0]
             layout = design_mod.check_design_layout(fake, "memo", "wechat_mp")
             layout_ok = (
                 len(layout) == 1
@@ -399,7 +404,7 @@ def run() -> int:
             design_mod._shoot = (
                 lambda html_path, image_path, **kwargs: _Path(image_path).write_bytes(b"")
             )
-            design_mod._check_blocks = lambda blocks, mode: []
+            design_mod._check_blocks = lambda blocks, mode: ([], [])
             try:
                 paths = design_mod.render_design_cards(many, "memo", platform="xiaohongshu")
                 covers = design_mod.render_design_cards(many, "memo", platform="wechat_mp")

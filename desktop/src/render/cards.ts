@@ -4,13 +4,17 @@
  * 对应 Python 版的 /cards、/design-cards、/design/cover、/artwork-inline、/motion。
  * 所有图片落在 {@link ASSETS_DIR}/draft-{id}/ 下，返回 `/assets/...` 可访问路径。
  */
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { ASSETS_DIR } from "../core/config";
+import { promisify } from "node:util";
+import { ASSETS_DIR, DESIGN_DIR, TMP_DIR } from "../core/config";
+import { execute, queryAll } from "../core/db";
+import { log } from "../core/log";
 import { normalizePlatform } from "../core/platform";
 import { getSetting } from "../core/settings";
 import { getDraft, updateDraft } from "../services/drafts";
-import { captureHtml, isRenderAvailable } from "./renderer";
+import { captureFrames, captureHtml, captureHtmlWithProbe, checkBlocks, isRenderAvailable } from "./renderer";
 import {
   artStyleName,
   buildCardPages,
@@ -27,6 +31,25 @@ import {
   type CardPalette,
   type CardStyleKey,
 } from "./templates";
+import {
+  DEFAULT_V2_LAYOUT,
+  DEFAULT_V2_PALETTE,
+  DEFAULT_V2_STYLE,
+  isV2LayoutKey,
+  isV2StyleKey,
+  renderV2Document,
+  v2StyleInfo,
+  V2_LAYOUTS,
+  V2_PALETTE_KEYS,
+  V2_STYLES,
+} from "./v2templates";
+import {
+  isSketchStyleKey,
+  renderSketchDocument,
+  sketchSeed,
+  sketchStyleInfo,
+  SKETCH_STYLES,
+} from "./sketch";
 
 export type RenderDraft = Record<string, unknown>;
 export type DraftInput = RenderDraft | number;
@@ -71,7 +94,8 @@ export interface MotionInfo {
   gif: string;
   mp4: string;
   still: string;
-  static: true;
+  /** true=静态首帧回退；false=已合成真动图（GIF+MP4） */
+  static: boolean;
   note: string;
 }
 
@@ -229,6 +253,20 @@ export async function renderDesignCards(
   const brand = brandMeta(options);
   const variant = options.variant;
 
+  if (isV2StyleKey(styleKey)) {
+    // M1 出图 2.0：V2 引擎（风格 × 版式 × 调色板），带版式体检。
+    const result = await renderV2Cards(draft, id, styleKey, options, platform);
+    const updated = updateDraft(id, { images: result.images });
+    return { ...updated, ...result };
+  }
+
+  if (isSketchStyleKey(styleKey)) {
+    // M2 手绘引擎：种子化构图 + 版式体检；variant 变化即「换一张」。
+    const result = await renderSketchCards(draft, id, styleKey, options, platform);
+    const updated = updateDraft(id, { images: result.images });
+    return { ...updated, ...result };
+  }
+
   if (isArtStyle(styleKey)) {
     const canvas = platform === "wechat_mp" ? { ...WIDE } : { ...PORTRAIT };
     const html = renderArtworkDocument(draft, {
@@ -365,9 +403,12 @@ export async function renderArtworkInline(
   };
 }
 
+const execFileAsync = promisify(execFile);
+
 /**
- * `/api/drafts/:id/motion`：Node 版动效暂只输出静态首帧 PNG，返回路径仍放在
- * motion.gif / motion.still，前端可直接打开；后续可用 Electron 录帧替换。
+ * `/api/drafts/:id/motion`：真动图。逐帧渲染（6s × 25fps，__seek 确定性契约）
+ * → ffmpeg 合成 loop.gif（15fps/540 宽/两阶段调色板）+ motion.mp4（810×1080 H.264）。
+ * 渲染或合成失败时回退静态首帧，不阻塞流程。
  */
 export async function renderMotion(input: DraftInput): Promise<MotionResult> {
   assertRenderable();
@@ -386,18 +427,47 @@ export async function renderMotion(input: DraftInput): Promise<MotionResult> {
     height: PORTRAIT.height,
     motion: true,
   });
+  const FPS = 25;
+  const DURATION = 6;
+  const times: number[] = [];
+  for (let i = 0; i <= FPS * DURATION; i += 1) times.push(i / FPS);
+  let frames: Buffer[] = [];
+  try {
+    frames = await captureFrames(html, PORTRAIT.width, PORTRAIT.height, times);
+  } catch (error) {
+    log.warn(`动效逐帧渲染失败，回退静态首帧: ${String(error)}`);
+  }
+  const motionDir = path.join(ASSETS_DIR, `draft-${id}`, "motion");
+  fs.mkdirSync(motionDir, { recursive: true });
+  if (frames.length >= 2 && (await encodeMotion(frames, FPS, motionDir))) {
+    fs.writeFileSync(path.join(motionDir, "01-cover.png"), frames[0]);
+    const motion: MotionInfo = {
+      gif: `/assets/draft-${id}/motion/loop.gif`,
+      mp4: `/assets/draft-${id}/motion/motion.mp4`,
+      still: `/assets/draft-${id}/motion/01-cover.png`,
+      static: false,
+      note: "",
+    };
+    saveMotion(id, draft, motion);
+    return { motion, draft_id: id, images: [motion.gif] };
+  }
   const url = writeAsset(
     id,
     "motion/01-cover-still.png",
-    await captureHtml(html, PORTRAIT.width, PORTRAIT.height)
+    frames[0] || (await captureHtml(html, PORTRAIT.width, PORTRAIT.height))
   );
   const motion: MotionInfo = {
     gif: url,
     mp4: "",
     still: url,
     static: true,
-    note: "Node 版动效暂为静态首帧 PNG，尚未生成 GIF / MP4",
+    note: "动效合成失败（本机缺少 ffmpeg 或逐帧渲染失败），已回退为静态首帧",
   };
+  saveMotion(id, draft, motion);
+  return { motion, draft_id: id, images: [url] };
+}
+
+function saveMotion(id: number, draft: RenderDraft, motion: MotionInfo): void {
   const current = draft.content_json;
   const content =
     current && typeof current === "object" && !Array.isArray(current)
@@ -405,5 +475,404 @@ export async function renderMotion(input: DraftInput): Promise<MotionResult> {
       : {};
   content.motion = motion;
   updateDraft(id, { content_json: content });
-  return { motion, draft_id: id, images: [url] };
+}
+
+/** ffmpeg 合成动图；任一产物缺失视为失败（调用方回退静态图）。 */
+async function encodeMotion(frames: Buffer[], fps: number, outDir: string): Promise<boolean> {
+  const frameDir = path.join(TMP_DIR, `motion-${process.pid}-${Date.now()}`);
+  try {
+    fs.mkdirSync(frameDir, { recursive: true });
+    frames.forEach((png, index) =>
+      fs.writeFileSync(path.join(frameDir, `f-${String(index).padStart(4, "0")}.png`), png)
+    );
+    await execFileAsync("ffmpeg", [
+      "-y", "-framerate", String(fps), "-i", path.join(frameDir, "f-%04d.png"),
+      "-vf",
+      "fps=15,scale=540:-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
+      path.join(outDir, "loop.gif"),
+    ]);
+    await execFileAsync("ffmpeg", [
+      "-y", "-framerate", String(fps), "-i", path.join(frameDir, "f-%04d.png"),
+      "-vf", "scale=810:1080", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+      "-crf", "18", "-preset", "medium", "-movflags", "+faststart",
+      path.join(outDir, "motion.mp4"),
+    ]);
+    return (
+      fs.existsSync(path.join(outDir, "loop.gif")) &&
+      fs.existsSync(path.join(outDir, "motion.mp4"))
+    );
+  } catch (error) {
+    log.warn(`ffmpeg 合成动图失败: ${String(error)}`);
+    return false;
+  } finally {
+    try {
+      fs.rmSync(frameDir, { recursive: true, force: true });
+    } catch {
+      /* 临时帧目录清理失败不影响结果 */
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ M1 出图 2.0 */
+
+/**
+ * V2 引擎单套出图：6 风格 × 4 版式 × 3 调色板，逐页「渲染 → 探针体检 → 截图」。
+ * errors 拦截整组（抛错），warnings 只记日志（告警观察模式）。
+ * 不回写草稿——候选模式与正式模式都由调用方决定是否 updateDraft。
+ */
+async function renderV2Cards(
+  draft: RenderDraft,
+  id: number,
+  styleKey: string,
+  options: RenderOptions,
+  platform: string
+): Promise<CardRenderResult> {
+  assertRenderable();
+  const style = v2StyleInfo(styleKey);
+  const layout = isV2LayoutKey(options.layout) ? String(options.layout).trim() : DEFAULT_V2_LAYOUT;
+  const palette = V2_PALETTE_KEYS.includes(String(options.palette || "").trim())
+    ? String(options.palette).trim()
+    : DEFAULT_V2_PALETTE;
+  const canvas = platform === "wechat_mp" ? { ...WIDE } : { ...PORTRAIT };
+  let pages = buildCardPages(draft, { layout: "balanced" });
+  if (platform === "wechat_mp") pages = pages.slice(0, 1);
+  else pages = limitPages(pages, options.limit);
+  const images: string[] = [];
+  for (const page of pages) {
+    const html = renderV2Document(page, style.key, layout, palette, canvas.width, canvas.height);
+    const { png, blocks } = await captureHtmlWithProbe(html, canvas.width, canvas.height);
+    const check = checkBlocks(blocks, canvas.width, canvas.height);
+    if (check.warnings.length) {
+      log.warn(`版式体检提示（${style.key}/${page.kind}）：${check.warnings.join("；")}`);
+    }
+    if (check.errors.length) {
+      throw new Error(
+        `版式自检失败（${style.key} 第 ${page.index}/${pages.length} 页）：${check.errors.slice(0, 4).join("；")}`
+      );
+    }
+    const slug = `${layout}-${palette}-${String(page.index).padStart(2, "0")}-${page.kind}`;
+    images.push(writeAsset(id, `v2-${style.key}/${slug}.png`, png));
+  }
+  if (!images.length) throw new Error("设计卡片生成失败：没有可渲染的页面");
+  return {
+    images,
+    style: style.key,
+    template: { key: style.key, name: style.name },
+    layout,
+    palette,
+    canvas,
+    platform,
+    renderer: RENDERER,
+  };
+}
+
+export interface DesignCandidate {
+  style: string;
+  name: string;
+  tagline: string;
+  temperature: string;
+  layout: string;
+  palette: string;
+  images: string[];
+}
+
+/**
+ * M2 手绘引擎出图：固定「插画 + 文字面板」构图，种子决定画面细节。
+ * 同（草稿, variant）逐像素一致；variant +1 即「换一张构图」。
+ * 文字层走与 V2 相同的探针体检：errors 拦截、warnings 记日志。
+ */
+async function renderSketchCards(
+  draft: RenderDraft,
+  id: number,
+  styleKey: string,
+  options: RenderOptions,
+  platform: string
+): Promise<CardRenderResult> {
+  assertRenderable();
+  const style = sketchStyleInfo(styleKey);
+  const variant = Math.max(0, Math.trunc(Number(options.variant) || 0));
+  const seed = sketchSeed(id, variant);
+  const canvas = platform === "wechat_mp" ? { ...WIDE } : { ...PORTRAIT };
+  let pages = buildCardPages(draft, { layout: "balanced" });
+  if (platform === "wechat_mp") pages = pages.slice(0, 1);
+  else pages = limitPages(pages, options.limit);
+  const images: string[] = [];
+  for (const page of pages) {
+    const html = renderSketchDocument(page, style.key, seed, canvas.width, canvas.height);
+    const { png, blocks } = await captureHtmlWithProbe(html, canvas.width, canvas.height);
+    const check = checkBlocks(blocks, canvas.width, canvas.height);
+    if (check.warnings.length) {
+      log.warn(`版式体检提示（${style.key}/${page.kind}）：${check.warnings.join("；")}`);
+    }
+    if (check.errors.length) {
+      throw new Error(
+        `版式自检失败（${style.key} 第 ${page.index}/${pages.length} 页）：${check.errors.slice(0, 4).join("；")}`
+      );
+    }
+    const slug = `seed${seed}-${String(page.index).padStart(2, "0")}-${page.kind}`;
+    images.push(writeAsset(id, `sketch-${style.key}/${slug}.png`, png));
+  }
+  if (!images.length) throw new Error("手绘配图生成失败：没有可渲染的页面");
+  return {
+    images,
+    style: style.key,
+    template: { key: style.key, name: style.name },
+    layout: "sketch",
+    palette: "",
+    canvas,
+    platform,
+    seed,
+    variant,
+    renderer: RENDERER,
+  };
+}
+
+/**
+ * M1 1.4 多候选：一次出 N 套「风格 × 版式」候选（风格互异、版式互异）。
+ * 参考外观账本：近期用过的风格降权，连续两次同风格强制回避。
+ * 不改动草稿配图，等用户点选 selectDesignCandidate 后才落正式。
+ */
+export async function renderDesignCandidates(
+  input: DraftInput,
+  options: RenderOptions = {},
+  count: number = 3
+): Promise<{ candidates: DesignCandidate[] }> {
+  assertRenderable();
+  const draft = resolveDraft(input);
+  const id = draftId(draft);
+  const platform = normalizePlatform(options.platform || draft.platform || "xiaohongshu");
+  const wanted = Math.max(2, Math.min(4, Math.trunc(Number(count) || 3)));
+  const recent = ledgerRecent(draft.account_id);
+  const recentStyles = recent.map((row) => String(row.style || ""));
+  // 轻量可复现随机：同草稿多次请求顺序稳定，便于测试与回放。
+  let seed = (Math.trunc(Number(draft.id) || 1) * 2654435761) >>> 0;
+  const rand = (): number => {
+    seed = (Math.imul(seed || 1, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const combos: Array<{ style: string; layout: string; score: number }> = [];
+  for (const style of V2_STYLES) {
+    for (const layout of V2_LAYOUTS) {
+      let score = rand();
+      if (recentStyles.includes(style.key)) score -= 4;
+      if (
+        recentStyles.length >= 2 &&
+        recentStyles[0] === style.key &&
+        recentStyles[1] === style.key
+      ) {
+        score -= 100;
+      }
+      combos.push({ style: style.key, layout: layout.key, score });
+    }
+  }
+  combos.sort((a, b) => b.score - a.score);
+  const chosen: Array<{ style: string; layout: string }> = [];
+  const usedStyles = new Set<string>();
+  const usedLayouts = new Set<string>();
+  for (const combo of combos) {
+    if (usedStyles.has(combo.style) || usedLayouts.has(combo.layout)) continue;
+    chosen.push({ style: combo.style, layout: combo.layout });
+    usedStyles.add(combo.style);
+    usedLayouts.add(combo.layout);
+    if (chosen.length >= wanted) break;
+  }
+  const candidates: DesignCandidate[] = [];
+  for (const combo of chosen) {
+    const style = v2StyleInfo(combo.style);
+    const result = await renderV2Cards(
+      draft,
+      id,
+      combo.style,
+      { ...options, layout: combo.layout, palette: DEFAULT_V2_PALETTE },
+      platform
+    );
+    candidates.push({
+      style: style.key,
+      name: style.name,
+      tagline: style.tagline,
+      temperature: style.temperature,
+      layout: combo.layout,
+      palette: DEFAULT_V2_PALETTE,
+      images: result.images,
+    });
+  }
+  return { candidates };
+}
+
+/**
+ * M1 1.4 点选候选：按同参数重渲染（命中同一批文件）并记入外观账本，
+ * 然后把该组图片设为草稿正式配图。
+ */
+export async function selectDesignCandidate(
+  input: DraftInput,
+  options: RenderOptions = {}
+): Promise<CardRenderResult> {
+  const draft = resolveDraft(input);
+  const id = draftId(draft);
+  const platform = normalizePlatform(options.platform || draft.platform || "xiaohongshu");
+  const styleKey = String(options.style || "").trim() || DEFAULT_V2_STYLE;
+  const result = await renderV2Cards(draft, id, styleKey, options, platform);
+  ledgerRecord(
+    id,
+    draft.account_id,
+    platform,
+    styleKey,
+    result.layout as string,
+    String(result.palette)
+  );
+  const updated = updateDraft(id, { images: result.images });
+  return { ...updated, ...result };
+}
+
+/* ------------------------------ 外观账本（M1 1.6） ----------------------------- */
+
+interface LedgerRow {
+  style: string;
+  layout: string;
+  palette: string;
+}
+
+export function ledgerRecord(
+  draftId: number,
+  accountId: unknown,
+  platform: string,
+  style: string,
+  layout: string,
+  palette: string
+): void {
+  try {
+    const account = Number(accountId);
+    execute(
+      "INSERT INTO design_ledger(account_id, draft_id, platform, style, layout, palette, created_at) VALUES(?,?,?,?,?,?,?)",
+      Number.isFinite(account) && account > 0 ? Math.trunc(account) : null,
+      Math.trunc(Number(draftId) || 0),
+      String(platform || ""),
+      String(style || ""),
+      String(layout || ""),
+      String(palette || ""),
+      Math.floor(Date.now() / 1000)
+    );
+  } catch (error) {
+    log.warn(`外观账本写入失败: ${String(error)}`);
+  }
+}
+
+export function ledgerRecent(accountId: unknown, n: number = 8): LedgerRow[] {
+  const account = Number(accountId);
+  if (!Number.isFinite(account) || account <= 0) return [];
+  try {
+    return queryAll<LedgerRow>(
+      "SELECT style, layout, palette FROM design_ledger WHERE account_id = ? ORDER BY created_at DESC LIMIT ?",
+      Math.trunc(account),
+      Math.max(1, Math.trunc(n))
+    );
+  } catch (error) {
+    log.warn(`外观账本读取失败: ${String(error)}`);
+    return [];
+  }
+}
+
+/* ------------------------------ 样张预览（M1 1.3） ----------------------------- */
+
+const SAMPLE_DRAFT: RenderDraft = {
+  id: 0,
+  title: "3 个让笔记更清晰的方法",
+  desc: [
+    "排版比文笔更影响完读率，这 3 个方法今天就能用",
+    "✨ 大标题只说一件事",
+    "✅ 一眼就知道这篇讲什么",
+    "✅ 不贪多，一页一个重点",
+    "✨ 每页最多三个要点",
+    "✅ 超过三个就拆页",
+    "✅ 条目控制在两行以内",
+    "✨ 留白也是信息",
+    "✅ 密的地方读者会跳过",
+    "🔍 结尾",
+    "你最想先试哪一个？",
+  ].join("\n"),
+};
+
+/**
+ * M1 1.3 样张：每个 V2 风格 × 版式渲染一张 405×540 缩略图（懒加载、落盘缓存）。
+ * 样张内容固定，不需要体检；单张失败跳过，前端用色块占位。
+ */
+export async function ensureDesignSamples(
+  force: boolean = false
+): Promise<Array<Record<string, unknown>>> {
+  assertRenderable();
+  const dir = path.join(DESIGN_DIR, "samples");
+  fs.mkdirSync(dir, { recursive: true });
+  const pages = buildCardPages(SAMPLE_DRAFT, { layout: "balanced" });
+  const samplePage = (layout: string): CardPage =>
+    layout === "hero" || layout === "stack" ? pages[0] : pages[1] || pages[0];
+  const out: Array<Record<string, unknown>> = [];
+  for (const style of V2_STYLES) {
+    for (const layout of V2_LAYOUTS) {
+      const key = `${style.key}-${layout.key}`;
+      const file = path.join(dir, `${key}.png`);
+      if (force || !fs.existsSync(file)) {
+        try {
+          const html = renderV2Document(
+            samplePage(layout.key),
+            style.key,
+            layout.key,
+            DEFAULT_V2_PALETTE,
+            PORTRAIT.width,
+            PORTRAIT.height
+          );
+          const png = await captureHtml(html, PORTRAIT.width, PORTRAIT.height);
+          fs.writeFileSync(file, png);
+        } catch (error) {
+          log.warn(`样张生成失败 ${key}: ${String(error)}`);
+        }
+      }
+      if (fs.existsSync(file)) {
+        out.push({
+          style: style.key,
+          name: style.name,
+          tagline: style.tagline,
+          fit: style.fit,
+          temperature: style.temperature,
+          layout: layout.key,
+          layout_name: layout.name,
+          colors: style.colors,
+          url: `/designs/samples/${key}.png`,
+        });
+      }
+    }
+  }
+  // M2 手绘风格样张：每风格一张封面样张（固定种子，展示构图观感）。
+  for (const style of SKETCH_STYLES) {
+    const key = `${style.key}-cover`;
+    const file = path.join(dir, `${key}.png`);
+    if (force || !fs.existsSync(file)) {
+      try {
+        const html = renderSketchDocument(
+          pages[0],
+          style.key,
+          42,
+          PORTRAIT.width,
+          PORTRAIT.height
+        );
+        const png = await captureHtml(html, PORTRAIT.width, PORTRAIT.height);
+        fs.writeFileSync(file, png);
+      } catch (error) {
+        log.warn(`样张生成失败 ${key}: ${String(error)}`);
+      }
+    }
+    if (fs.existsSync(file)) {
+      out.push({
+        style: style.key,
+        name: style.name,
+        tagline: style.tagline,
+        fit: style.fit,
+        temperature: style.temperature,
+        layout: "cover",
+        layout_name: "手绘构图",
+        colors: style.colors,
+        url: `/designs/samples/${key}.png`,
+      });
+    }
+  }
+  return out;
 }

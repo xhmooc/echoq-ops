@@ -818,16 +818,56 @@ export function renderCardDocument(page: CardPage, ctx: CardPageContext): string
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"/>
 <title>${esc(page.title)}</title>
-<style>${BASE_CSS}</style></head>
+<style>${BASE_CSS}${ctx.motion ? MOTION_CSS : ""}</style></head>
 <body>
 <main class="page ${styleKey} ${page.kind} layout-${normalizeLayout(ctx.layout)}${wide ? " wide" : ""}${motion}" style="${pageVars(ctx)}">
 ${tape}${ghost}
 ${wide ? topLine(ctx.brand, true) : topLine(ctx.brand)}
 ${body}
 ${footLine(page, ctx.brand)}
+${ctx.motion ? MOTION_BAR : ""}
 </main>
+${ctx.motion ? `<script>${MOTION_SCRIPT}</script>` : ""}
 </body></html>`;
 }
+
+/* ------------------------------------------------------------- 动效契约（M3 同构） */
+
+const MOTION_CSS = `
+.motion #motion-bar{position:absolute;left:0;right:auto;bottom:0;height:10px;width:0;
+background:rgba(17,24,39,.42);z-index:9;border-radius:0 6px 6px 0}
+`;
+
+const MOTION_BAR = '<div id="motion-bar"></div>';
+
+/**
+ * 确定性动效契约：__ready / __recording / __seek(t)。
+ * 页面不使用 CSS animation，画面是 t 的纯函数——逐帧截图前调用 __seek(t)
+ * 再等两帧 rAF，同 t 同像素（与 huashu-design render-video-seek 同构）。
+ */
+const MOTION_SCRIPT = `
+(function(){
+  var page = document.querySelector('.page');
+  window.__recording = false;
+  if (!page) { window.__seek = function(){}; window.__ready = true; return; }
+  var bar = document.getElementById('motion-bar');
+  var sel = '.kicker,.title,.lead,.toc,.section-title,.item,.item-text,.outro,.tag-row,.seal';
+  var els = Array.prototype.filter.call(page.querySelectorAll(sel), function(el){
+    return !el.querySelector(sel);
+  });
+  function seg(t, a, b){ return Math.max(0, Math.min(1, (t - a) / (b - a))); }
+  function ease(u){ return 1 - Math.pow(1 - u, 3); }
+  window.__seek = function(t){
+    for (var i = 0; i < els.length; i++){
+      var u = ease(seg(t, 0.10 + i * 0.26, 0.70 + i * 0.26));
+      els[i].style.opacity = String(u);
+      els[i].style.transform = 'translateY(' + ((1 - u) * 26).toFixed(1) + 'px)';
+    }
+    if (bar) bar.style.width = (Math.min(1, t / 6) * 100).toFixed(2) + '%';
+  };
+  window.__seek(0);
+  window.__ready = true;
+})();`;
 
 /* ------------------------------------------------------------- 插画版式 */
 

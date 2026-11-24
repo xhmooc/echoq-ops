@@ -93,7 +93,7 @@ async def style_richtext(request: web.Request) -> web.Response:
     payload = await _body(request)
     html = await asyncio.to_thread(
         richtext.apply_theme,
-        str(payload.get("html") or ""),
+        richtext.external_links_to_footnotes(str(payload.get("html") or "")),
         str(payload.get("theme") or "huasheng"),
     )
     return _ok({"html": html})
@@ -318,6 +318,24 @@ async def design_plan(request: web.Request) -> web.Response:
     )
 
 
+@routes.get("/api/design/layouts")
+async def design_layouts(request: web.Request) -> web.Response:
+    """M1 1.1：版式（信息排布）注册表，与风格正交组合。"""
+    from ops.designs import list_design_layouts
+
+    return _ok(list_design_layouts())
+
+
+@routes.get("/api/design/samples")
+async def design_samples(request: web.Request) -> web.Response:
+    """M1 1.3：V2 风格 × 版式样张（懒加载生成并落盘缓存）。"""
+    from ops.designs import ensure_design_samples
+
+    force = request.query.get("force") == "1"
+    items = await asyncio.to_thread(ensure_design_samples, force)
+    return _ok(items)
+
+
 @routes.post("/api/drafts/{draft_id}/design-cards")
 async def make_design_cards(request: web.Request) -> web.Response:
     service = _service(request)
@@ -327,6 +345,9 @@ async def make_design_cards(request: web.Request) -> web.Response:
     variant = int(raw_variant) if raw_variant not in (None, "") else None
     raw_limit = payload.get("limit")
     limit = int(raw_limit) if raw_limit not in (None, "") else None
+    layout = str(payload.get("layout") or "stack")
+    palette = str(payload.get("palette") or "default")
+    mode = str(payload.get("mode") or "single")
     draft = await asyncio.to_thread(
         service.get_draft, int(request.match_info["draft_id"])
     )
@@ -363,6 +384,25 @@ async def make_design_cards(request: web.Request) -> web.Response:
             platform=str(updated.get("platform") or platform),
             artwork=True,
         )
+    if mode == "candidates":
+        # M1 1.4 多候选：一次出 3 套「风格 × 版式」，不改动草稿配图，等用户点选。
+        from ops.designs import render_design_candidates
+
+        candidates = await _blocking(
+            render_design_candidates,
+            draft,
+            platform,
+            3,
+            limit,
+            timeout=config.RENDER_TIMEOUT_SEC,
+        )
+        return _ok(
+            draft,
+            mode="candidates",
+            candidates=candidates,
+            canvas=canvas,
+            platform=str(draft.get("platform") or platform),
+        )
     images = await _blocking(
         render_design_cards,
         draft,
@@ -370,6 +410,8 @@ async def make_design_cards(request: web.Request) -> web.Response:
         variant,
         limit,
         platform=platform,
+        layout=layout,
+        palette=palette,
         timeout=config.RENDER_TIMEOUT_SEC,
     )
     updated = await asyncio.to_thread(
@@ -381,6 +423,44 @@ async def make_design_cards(request: web.Request) -> web.Response:
         style=style,
         template={"key": template["key"], "name": template["name"]},
         canvas=canvas,
+        platform=str(updated.get("platform") or platform),
+        layout=layout,
+        palette=palette,
+    )
+
+
+@routes.post("/api/drafts/{draft_id}/design-candidate/select")
+async def select_design_candidate_route(request: web.Request) -> web.Response:
+    """M1 1.4：点选多候选之一设为草稿配图，并记入外观账本（M1 1.6）。"""
+    service = _service(request)
+    payload = await _body(request)
+    style = str(payload.get("style") or "")
+    layout = str(payload.get("layout") or "stack")
+    palette = str(payload.get("palette") or "default")
+    draft = await asyncio.to_thread(
+        service.get_draft, int(request.match_info["draft_id"])
+    )
+    from ops.designs import select_design_candidate
+    from ops.platforms import normalize
+
+    platform = normalize(payload.get("platform") or draft.get("platform") or "")
+    images = await _blocking(
+        select_design_candidate,
+        draft,
+        style,
+        layout,
+        palette,
+        platform,
+        timeout=config.RENDER_TIMEOUT_SEC,
+    )
+    updated = await asyncio.to_thread(
+        service.update_draft, int(draft["id"]), {"images": images}
+    )
+    return _ok(
+        updated,
+        style=style,
+        layout=layout,
+        palette=palette,
         platform=str(updated.get("platform") or platform),
     )
 

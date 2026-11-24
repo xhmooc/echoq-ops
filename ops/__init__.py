@@ -4,6 +4,6 @@
 本包只做编排，底层采集/发布能力全部复用 ``vendor.apis`` 与 ``vendor.xhs_utils``。
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = ["__version__"]

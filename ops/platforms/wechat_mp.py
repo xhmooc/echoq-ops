@@ -1588,7 +1588,8 @@ def _article_html(client: WeChatClient, payload: dict[str, Any]) -> str:
         html = richtext.plain_to_html(str(payload.get("desc") or ""))
     elif theme:
         # 内容与排版分开：正文只存原稿，发布这一刻才套主题。
-        html = richtext.apply_theme(html, theme)
+        # 公众号不允许外链，先转尾注再套主题。
+        html = richtext.apply_theme(richtext.external_links_to_footnotes(html), theme)
     else:
         html = richtext.sanitize_html(html)
     if not html:

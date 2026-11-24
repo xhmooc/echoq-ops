@@ -749,8 +749,20 @@
                   <p class="hint" id="card-style-hint">只影响配图版式，不改动正文内容。</p>
                 </div>
               </div>
+              <div class="v2-options" id="v2-options" hidden>
+                <div class="style-picker-row">
+                  <label for="seg-layout">版式</label>
+                  <div class="seg v2-seg" id="seg-layout" role="radiogroup" aria-label="版式"></div>
+                </div>
+                <div class="style-picker-row">
+                  <label for="seg-palette">调色板</label>
+                  <div class="seg v2-seg" id="seg-palette" role="radiogroup" aria-label="调色板"></div>
+                </div>
+              </div>
               <div class="card-actions">
                 <button class="btn primary block" id="btn-cards-free">生成配图</button>
+                <button class="btn ghost block" id="btn-reshuffle" hidden>换一张构图</button>
+                <button class="btn ghost block" id="btn-candidates">一次出 3 版候选</button>
                 <button class="btn ghost block card-motion" id="btn-motion">生成 6 秒动图</button>
               </div>
               <p class="hint" id="motion-result" hidden>

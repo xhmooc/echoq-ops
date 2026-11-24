@@ -31,6 +31,7 @@ __all__ = [
     "wrap_article",
     "render",
     "apply_theme",
+    "external_links_to_footnotes",
     "list_themes",
     "THEMES",
 ]
@@ -565,6 +566,51 @@ def render(text: str, fmt: str = "markdown", images: Sequence[str] = ()) -> dict
 
 
 # ------------------------------------------------------------------ 一键排版
+
+# 公众号正文不允许跳转外部链接：发布前把外链转成「文字[n]」+ 文末参考链接，
+# 公众号域名内的链接保持原样（对齐 baoyu-post-to-wechat 的清洗思路）。
+_EXTERNAL_LINK_RE = re.compile(
+    r"<a\b[^>]*href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a\s*>",
+    re.S | re.I,
+)
+_WECHAT_LINK_HOSTS = ("mp.weixin.qq.com", "weixin.qq.com")
+
+
+def external_links_to_footnotes(html: str) -> str:
+    """把正文里的外部链接转成尾注；无外链时原样返回。"""
+    body = str(html or "")
+    if "<a" not in body.lower():
+        return body
+    notes: list[str] = []
+
+    def _replace(match: re.Match[str]) -> str:
+        href = html_lib.unescape(match.group(1) or "").strip()
+        label = re.sub(r"<[^>]+>", "", match.group(2) or "").strip()
+        if not href.lower().startswith("http"):
+            return match.group(0)
+        host = re.sub(r"^[a-z]+://", "", href.lower()).split("/", 1)[0]
+        if host in _WECHAT_LINK_HOSTS:
+            return match.group(0)
+        notes.append(href)
+        mark = f'<sup style="color:#888;font-size:12px;">[{len(notes)}]</sup>'
+        return f"{label}{mark}" if label else mark
+
+    body = _EXTERNAL_LINK_RE.sub(_replace, body)
+    if not notes:
+        return body
+    items = "".join(
+        f'<p style="margin:4px 0;font-size:13px;color:#888;line-height:1.6;">'
+        f"{index}. {html_lib.escape(url)}</p>"
+        for index, url in enumerate(notes, 1)
+    )
+    footer = (
+        '<section style="margin-top:28px;padding-top:14px;border-top:1px solid #eeeeee;">'
+        '<p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#888888;">参考链接</p>'
+        f"{items}</section>"
+    )
+    return body + footer
+
+
 
 # 主题来自 huasheng_editor（花生公众号编辑器）的 13 套排版：公众号只认内联样式，
 # 所以每个主题直接给出每个标签的完整 style，应用时整体替换。旧的 key

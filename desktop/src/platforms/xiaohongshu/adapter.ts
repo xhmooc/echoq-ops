@@ -288,9 +288,10 @@ export async function checkSession(account: AccountRow): Promise<SessionCheckRes
       avatar: String(
         data.avatar ||
           data.image ||
+          data.images ||
+          data.imageb ||
           data.head_img ||
           data.headImgUrl ||
-          (Array.isArray(data.images) ? data.images[0] : "") ||
           ""
       ),
     };

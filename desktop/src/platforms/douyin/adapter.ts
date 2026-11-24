@@ -441,7 +441,9 @@ export function newDouyinPartition(scope: string): string {
 export function createDouyinWindow(
   partition: string,
   visible: boolean,
-  title: string
+  title: string,
+  /** 创建成全透明窗口：对页面算“可见”（抖音才肯加载二维码），但用户看不到。 */
+  invisible = false
 ): BrowserWindow {
   if (!app.isReady()) {
     throw new DouyinFailure("platform", "桌面环境尚未就绪，请稍后重试");
@@ -450,6 +452,7 @@ export function createDouyinWindow(
     width: 1280,
     height: 900,
     show: visible,
+    opacity: invisible ? 0 : 1,
     title,
     autoHideMenuBar: true,
     paintWhenInitiallyHidden: true,
@@ -462,6 +465,33 @@ export function createDouyinWindow(
     },
   });
   win.removeMenu();
+  // 抖音页面偶尔会跳到 bitbrowser:// 等自定义协议；在应用内拦掉，避免系统弹
+  // 「获取打开此链接的应用」窗口。
+  const isWebUrl = (url: string): boolean => /^https?:/i.test(url);
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isWebUrl(url)) void win.loadURL(url).catch(() => undefined);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    if (isWebUrl(url)) return;
+    event.preventDefault();
+    log.warn(`抖音窗口已拦截非网页协议: ${url.slice(0, 120)}`);
+  });
+  win.webContents.on("will-redirect", (event, url) => {
+    if (isWebUrl(url)) return;
+    event.preventDefault();
+    log.warn(`抖音窗口已拦截非网页协议跳转: ${url.slice(0, 120)}`);
+  });
+  // 页面的反爬脚本会通过隐藏 iframe 探测本机安装的自定义协议（实测触发过
+  // bitbrowser://），will-navigate 不覆盖子框架，这里一并拦截。
+  win.webContents.on("will-frame-navigate", (details) => {
+    if (isWebUrl(details.url)) return;
+    details.preventDefault();
+    log.warn(`抖音窗口已拦截子框架非网页协议: ${details.url.slice(0, 120)}`);
+  });
+  win.webContents.on("will-attach-webview", (event) => {
+    event.preventDefault();
+  });
   return win;
 }
 
@@ -784,10 +814,12 @@ async function startNetworkCapture(dbg: CdpDebugger): Promise<NetworkCapture> {
 
 function userInfoFromPayload(payload: unknown): DouyinUserInfo {
   const record = asRecord(payload);
-  const data = asRecord(record.data);
-  let user = asRecord(data.user);
-  if (!Object.keys(user).length) user = asRecord(data.user_info ?? data.userInfo);
-  if (!Object.keys(user).length) user = data;
+  const nested = asRecord(record.data);
+  // 创作者中心的 user/info 有时把 user 放在根节点，有时包在 data 里。
+  const base = Object.keys(nested).length ? nested : record;
+  let user = asRecord(base.user);
+  if (!Object.keys(user).length) user = asRecord(base.user_info ?? base.userInfo);
+  if (!Object.keys(user).length) user = base;
   return {
     nickname: String(user.nickname || user.name || record.nickname || "").trim(),
     platformId: String(user.unique_id || user.uniqueId || user.short_id || "").trim(),
@@ -797,6 +829,8 @@ function userInfoFromPayload(payload: unknown): DouyinUserInfo {
         user.avatarLarger ??
         user.avatar_thumb ??
         user.avatar_medium ??
+        user.avatar_300x300 ??
+        user.avatar_168x168 ??
         user.avatar_url ??
         user.avatarUri
     ),

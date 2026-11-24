@@ -56,6 +56,21 @@ function migrate(db: Database.Database): void {
       db.exec("ALTER TABLE accounts ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
       log.info("accounts 表已补充 avatar 列");
     }
+    // M1 出图 2.0：外观账本（与 ops/db.py 的 design_ledger 同构，双向兼容）。
+    db.exec(`CREATE TABLE IF NOT EXISTS design_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      account_id INTEGER,
+      draft_id INTEGER NOT NULL,
+      platform TEXT NOT NULL DEFAULT '',
+      style TEXT NOT NULL DEFAULT '',
+      layout TEXT NOT NULL DEFAULT '',
+      palette TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL
+    )`);
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_design_ledger_account ON design_ledger(account_id, created_at DESC)"
+    );
+    db.exec("CREATE INDEX IF NOT EXISTS idx_design_ledger_draft ON design_ledger(draft_id)");
   } catch (error) {
     log.error(`账号表结构检查失败: ${String(error)}`);
   }

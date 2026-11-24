@@ -84,6 +84,22 @@ export interface AccountInfo {
   ticket: string;
   user_name: string;
   svr_time: string;
+  avatar: string;
+}
+
+/** 从后台首页 HTML 里取账号头像：字段名和页面结构在不同版本里不一致，逐种兜底。 */
+export function avatarFromHtml(html: string): string {
+  const raw = regexFirst(html || "", [
+    /"head_img"\s*:\s*"([^"]+)"/,
+    /"hd_head_img"\s*:\s*"([^"]+)"/,
+    /"headimgurl"\s*:\s*"([^"]+)"/,
+    /"headimg"\s*:\s*"([^"]+)"/,
+    /wx\.cgiData\.headimg\s*=\s*["']([^"']+)["']/,
+    /class="[^"]*weui-desktop-account__thumb[^"]*"[^>]*src="([^"]+)"/,
+    /src="([^"]+)"[^>]*class="[^"]*weui-desktop-account__thumb/,
+  ]);
+  const url = raw.replace(/\\\//g, "/").trim();
+  return /^https?:\/\//i.test(url) ? url : "";
 }
 
 /** 从后台首页 HTML / URL 里提取账号身份与 token，正则与 Python 版保持一致。 */
@@ -125,7 +141,15 @@ export function parseAccount(html: string, pageUrl = ""): AccountInfo {
     /svr_time\s*[:=]\s*["']?(\d{10,13})/,
     /\btime\s*[:=]\s*["']?(\d{10,13})/,
   ]);
-  return { nickname, fakeid, token, ticket, user_name: userName, svr_time: svrTime };
+  return {
+    nickname,
+    fakeid,
+    token,
+    ticket,
+    user_name: userName,
+    svr_time: svrTime,
+    avatar: avatarFromHtml(html),
+  };
 }
 
 /** 在多层响应里找字段（素材上传常把结果塞进 data/content）。 */

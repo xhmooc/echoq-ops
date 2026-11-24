@@ -306,6 +306,23 @@ CREATE TABLE IF NOT EXISTS proxies (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+-- 外观账本（M1 出图 2.0）：记录每账号每次选用的风格/版式/调色板，
+-- 供多候选推荐时避开连续重复（对齐 huashu「外观账本」机制）。
+CREATE TABLE IF NOT EXISTS design_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER,
+    draft_id INTEGER NOT NULL,
+    platform TEXT NOT NULL DEFAULT '',
+    style TEXT NOT NULL DEFAULT '',
+    layout TEXT NOT NULL DEFAULT '',
+    palette TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_design_ledger_account
+    ON design_ledger(account_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_design_ledger_draft
+    ON design_ledger(draft_id);
 """
 
 

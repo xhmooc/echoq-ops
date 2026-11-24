@@ -46,6 +46,7 @@ export interface QrPayload {
   status: string;
   message: string;
   nickname: string;
+  avatar: string;
   red_id: string;
   requires_window: boolean;
   window_open: boolean;
@@ -63,6 +64,7 @@ export class WechatQrSession {
   status = "starting";
   message = "正在打开微信公众平台";
   nickname = "";
+  avatar = "";
   fakeid = "";
   token = "";
   qrDataUrl = "";
@@ -193,6 +195,7 @@ export class WechatQrSession {
     const html = String((await this.exec(HTML_SCRIPT).catch(() => "")) || "");
     const info: AccountInfo = parseAccount(html, pageUrl);
     this.nickname = info.nickname;
+    this.avatar = info.avatar;
     this.fakeid = info.fakeid;
     this.token = info.token;
     const ses = this.win.webContents.session;
@@ -219,6 +222,7 @@ export class WechatQrSession {
       user_name: info.user_name,
       svr_time: info.svr_time,
       nickname: this.nickname,
+      avatar: this.avatar,
       platform_id: this.fakeid,
       user_id: this.fakeid,
       login_at: now(),
@@ -366,6 +370,7 @@ export class WechatQrSession {
       status: this.status,
       message: this.message,
       nickname: this.nickname,
+      avatar: this.avatar,
       red_id: this.fakeid,
       requires_window: needsWindow,
       window_open: windowOpen,

@@ -395,6 +395,8 @@ svg { display: block; flex: 0 0 auto; }
   border-radius: 6px;
   font-size: 12px;
   color: var(--ink-2);
+  white-space: nowrap;
+  flex: 0 0 auto;
   transition: background .14s, color .14s, box-shadow .14s;
 }
 .seg button.active { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-sm); }

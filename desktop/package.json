@@ -1,6 +1,6 @@
 {
   "name": "echoq-ops-desktop-next",
-  "version": "0.1.0",
+  "version": "0.2.5",
   "private": true,
   "description": "应声运营桌面版（Node/TypeScript 主进程）",
   "author": "应声",
@@ -42,6 +42,10 @@
       {
         "from": "../ops/web/static",
         "to": "web"
+      },
+      {
+        "from": "../vendor/xhs_utils",
+        "to": "vendor/xhs_utils"
       }
     ],
     "win": {
