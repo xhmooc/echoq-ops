@@ -78,6 +78,16 @@
     return typeof esc === "function" ? esc(value == null ? "" : value) : String(value == null ? "" : value);
   }
 
+  /* 账号头像：平台巡检拿到头像地址就显示图片，否则回退到昵称首字。 */
+  function accountAvatarHtml(account, cls, size, radius) {
+    const url = String((account && account.avatar) || "");
+    if (/^https?:\/\//i.test(url)) {
+      return `<img class="${cls}" src="${safeEsc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;border-radius:${radius}px;object-fit:cover;display:block" />`;
+    }
+    const text = String((account && (account.nickname || account.name)) || "应").slice(0, 1);
+    return `<span class="${cls}">${safeEsc(text)}</span>`;
+  }
+
   function fmtClock(ts) {
     if (!ts) return "--:--";
     const date = new Date(Number(ts) * 1000);
@@ -139,6 +149,39 @@
     }
     window.addEventListener("resize", apply);
     apply();
+  }
+
+  /* 折叠态：鼠标悬停图标时在侧栏外侧显示名称，避免提示被侧栏裁掉 */
+  function initRailTips() {
+    const app = $("#app");
+    const tip = document.createElement("div");
+    tip.className = "rail-tip";
+    document.body.appendChild(tip);
+
+    const hide = () => tip.classList.remove("show");
+    const show = (item) => {
+      if (!app.classList.contains("rail")) return;
+      const label = item.querySelector(".nav-text");
+      const text = label && label.textContent ? label.textContent.trim() : "";
+      if (!text) return;
+      tip.textContent = text;
+      tip.classList.add("show");
+      const rect = item.getBoundingClientRect();
+      tip.style.left = `${Math.round(rect.right + 10)}px`;
+      tip.style.top = `${Math.round(rect.top + rect.height / 2)}px`;
+    };
+
+    document.addEventListener("mouseover", (event) => {
+      const item = event.target.closest(".sidebar .nav-item");
+      if (item) show(item);
+      else hide();
+    });
+    document.addEventListener("mouseout", (event) => {
+      const item = event.target.closest(".sidebar .nav-item");
+      if (item && !item.contains(event.relatedTarget)) hide();
+    });
+    window.addEventListener("scroll", hide, true);
+    document.addEventListener("click", hide, true);
   }
 
   /* ------------------------------------------------------------------ 路由包装 */
@@ -221,7 +264,7 @@
       navAccounts.classList.toggle("show", totalAccounts > 0);
     }
 
-    const summary = $("#account-summary");
+    const summary = $("#account-stats");
     if (summary) {
       const list = state.accounts || [];
       const healthy = list.filter((account) => account.enabled && account.status === "healthy").length;
@@ -232,16 +275,16 @@
         0
       );
       const items = [
-        { label: "账号总数", value: list.length || accounts.total || 0, unit: "个", icon: "user", kind: "" },
-        { label: "登录正常", value: healthy, unit: "个", icon: "check", kind: "ok" },
-        { label: "需重新登录", value: expired, unit: "个", icon: "alert", kind: "warn" },
-        { label: "今日发布配额", value: `${today} / ${quota || "—"}`, unit: "", icon: "send", kind: "brand" },
+        { label: "账号总数", value: list.length || accounts.total || 0, icon: "user", kind: "brand" },
+        { label: "登录正常", value: healthy, icon: "check", kind: "ok" },
+        { label: "需重新登录", value: expired, icon: "alert", kind: "warn" },
+        { label: "今日发布配额", value: `${today} / ${quota || "—"}`, icon: "send", kind: "" },
       ];
       summary.innerHTML = items
         .map(
-          (item) => `<div class="acct-sum">
-            <span class="ico ${item.kind}">${icon(item.icon)}</span>
-            <div><b>${item.value}</b><span>${item.label}${item.unit}</span></div>
+          (item) => `<div class="card stat-card">
+            <span class="stat-ico ${item.kind}">${icon(item.icon)}</span>
+            <div><div class="n">${item.value}</div><div class="l">${item.label}</div></div>
           </div>`
         )
         .join("");
@@ -251,27 +294,32 @@
     if (schedSum) {
       const sched = overview.schedules || {};
       schedSum.innerHTML = `
-        <div class="ss-item"><b>${sched.total || 0}</b><span>个计划</span></div>
-        <div class="ss-item"><b>${sched.enabled || 0}</b><span>启用中</span></div>
-        <div class="ss-item"><b>${sched.paused || 0}</b><span>已暂停</span></div>
-        <span class="ss-note"><i class="dot${sched.running ? " on" : ""}"></i>${
+        <div class="strip-note">
+          <span><b>${sched.total || 0}</b> 个计划</span>
+          <span>启用中 <b>${sched.enabled || 0}</b></span>
+          <span>已暂停 <b>${sched.paused || 0}</b></span>
+          <span class="spacer"></span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><i class="st-dot${sched.running ? " on" : ""}"></i>${
         sched.running ? "调度器运行中" : "调度器待命"
       }</span>
-        <div class="ss-filters">
-          <button type="button" class="chip active" data-sched-filter="">全部</button>
-          <button type="button" class="chip" data-sched-filter="on">启用中</button>
-          <button type="button" class="chip" data-sched-filter="paused">已暂停</button>
+        </div>
+        <div class="toolbar" style="border-bottom:0">
+          <div class="seg" id="schedule-filter">
+            <button type="button" class="active" data-sched-filter="">全部</button>
+            <button type="button" data-sched-filter="on">启用中</button>
+            <button type="button" data-sched-filter="paused">已暂停</button>
+          </div>
         </div>`;
     }
 
     const queueSum = $("#queue-summary");
     if (queueSum) {
       queueSum.innerHTML = `
-        <div class="qs-item"><span>排队中</span><b>${jobs.pending || 0}</b></div>
-        <div class="qs-item"><span>重试中</span><b>${jobs.retry || 0}</b></div>
-        <div class="qs-item bad"><span>失败待处理</span><b>${jobs.failed || 0}</b></div>
+        <span>排队中 <b>${jobs.pending || 0}</b></span>
+        <span>重试中 <b>${jobs.retry || 0}</b></span>
+        <span style="color:var(--bad)">失败待处理 <b style="color:var(--bad)">${jobs.failed || 0}</b></span>
         <span class="spacer"></span>
-        <span class="qs-note">失败会自动重试，登录失效会暂停任务</span>`;
+        <span>失败会自动重试，登录失效会暂停任务</span>`;
     }
 
     const accountNode = $("#status-accounts");
@@ -477,7 +525,7 @@
       ? accountRows
           .map(
             (account) => `<div class="acct-item">
-              <span class="avatar">${safeEsc(String(account.nickname || account.name || "应").slice(0, 1))}</span>
+              ${accountAvatarHtml(account, "avatar", 34, 10)}
               <div class="info"><b>${safeEsc(account.nickname || account.name)}</b><span>${safeEsc(
                 typeof platformName === "function" ? platformName(account.platform) : account.platform
               )} · 今日 ${account.published_today || 0} 篇</span></div>
@@ -858,19 +906,15 @@
     const dayMax = Math.max(1, ...days.map((item) => item.ok + item.bad));
     const chart = days
       .map(
-        (day) => `<div class="chart-col" title="${day.label}：成功 ${day.ok} · 失败 ${day.bad}">
+        (day) => `<div class="bar-col" title="${day.label}：成功 ${day.ok} · 失败 ${day.bad}">
           <div class="bar-stack">
-            <i class="bar" style="height:${Math.max(2, Math.round((day.ok / dayMax) * 100))}%"></i>
-            ${
-              day.bad
-                ? `<i class="bar failed" style="height:${Math.max(2, Math.round((day.bad / dayMax) * 100))}%"></i>`
-                : ""
-            }
+            <i class="b-dy" style="height:${Math.max(2, Math.round((day.bad / dayMax) * 100))}%"></i>
+            <i class="b-xhs" style="height:${Math.max(2, Math.round((day.ok / dayMax) * 100))}%"></i>
           </div>
-          <em>${day.label}</em>
         </div>`
       )
       .join("");
+    const chartAxis = days.map((day) => `<span>${day.label}</span>`).join("");
 
     const platformCount = new Map();
     records.forEach((record) => {
@@ -899,7 +943,7 @@
           .slice(0, 4)
           .map(
             (account) => `<div class="acct-item">
-              <span class="avatar">${safeEsc(String(account.nickname || account.name || "应").slice(0, 1))}</span>
+              ${accountAvatarHtml(account, "avatar", 34, 10)}
               <div class="info"><b>${safeEsc(account.nickname || account.name)}</b><span>${safeEsc(
                 typeof platformName === "function" ? platformName(account.platform) : account.platform
               )} · 今日 ${account.published_today || 0} / ${typeof accountLimit === "function" ? accountLimit(account) : "—"} 篇</span></div>
@@ -926,8 +970,11 @@
     const todoList = todoItems.length
       ? todoItems
           .map(
-            (item) => `<div class="todo-row">
-              <span class="stat-ico ${item.kind}">${icon(item.kind === "brand" ? "bell" : "alert", "ico")}</span>
+            (item) => `<div class="todo">
+              <span class="todo-ico ${item.kind === "brand" ? "info" : item.kind}">${icon(
+      item.kind === "brand" ? "bell" : "alert",
+      "ico"
+    )}</span>
               <div class="txt"><b>${safeEsc(item.title)}</b><span>${safeEsc(item.sub)}</span></div>
               <button class="link-btn" type="button" ${item.go ? `data-dash-go="${item.go}"` : ""}>${item.label}</button>
             </div>`
@@ -935,15 +982,22 @@
           .join("")
       : `<div class="home-empty">没有需要处理的事情。</div>`;
 
-    const latest = records.slice(0, 6);
+    const latest = records.slice(0, 5);
     const latestRows = latest.length
       ? latest
           .map(
             (record) => `<tr>
-              <td class="title-cell">${safeEsc(record.draft_title || "—")}</td>
+              <td><div class="cell-main"><span class="thumb"></span><div>
+                <div class="t">${safeEsc(record.draft_title || "—")}</div>
+                <div class="s">${safeEsc(
+                  typeof platformName === "function" ? platformName(record.platform) : record.platform
+                )}</div>
+              </div></div></td>
               <td>${safeEsc(typeof platformName === "function" ? platformName(record.platform) : record.platform)}</td>
               <td>${safeEsc(record.account_name || "—")}</td>
-              <td>${safeEsc(typeof fmtTime === "function" ? fmtTime(record.created_at) : "")}</td>
+              <td class="muted tabular">${safeEsc(
+                typeof fmtTime === "function" ? fmtTime(record.created_at) : ""
+              )}</td>
               <td>${record.success ? '<span class="pill ok">已发布</span>' : '<span class="pill bad">失败</span>'}</td>
             </tr>`
           )
@@ -953,56 +1007,70 @@
     grid.dataset.ready = "1";
     grid.innerHTML = `
       <div class="kpi-grid">
-        <div class="kpi">
-          <span class="kpi-label">今日已发布<i class="kpi-ico">${icon("send", "ico")}</i></span>
+        <div class="card kpi">
+          <div class="kpi-top"><span class="kpi-label">今日已发布</span><span class="kpi-icon">${icon("send", "ico")}</span></div>
           <div class="kpi-value">${ov.today_published || 0}<small>篇</small></div>
-          <div class="kpi-delta up">今日本机执行</div>
+          <div class="kpi-sub">今日本机执行</div>
         </div>
-        <div class="kpi">
-          <span class="kpi-label">待发布队列<i class="kpi-ico">${icon("calendar", "ico")}</i></span>
+        <div class="card kpi">
+          <div class="kpi-top"><span class="kpi-label">待发布队列</span><span class="kpi-icon">${icon("list", "ico")}</span></div>
           <div class="kpi-value">${ovDrafts.queued || 0}<small>篇</small></div>
-          <div class="kpi-delta">${ovJobs.pending ? `${ovJobs.pending} 个任务等待执行` : "队列为空"}</div>
+          <div class="kpi-sub">${ovJobs.pending ? `${ovJobs.pending} 个任务等待执行` : "队列为空"}</div>
         </div>
-        <div class="kpi">
-          <span class="kpi-label">账号可用<i class="kpi-ico">${icon("user", "ico")}</i></span>
+        <div class="card kpi">
+          <div class="kpi-top"><span class="kpi-label">账号可用</span><span class="kpi-icon">${icon("user", "ico")}</span></div>
           <div class="kpi-value">${ovAccounts.healthy || 0}<small>/ ${ovAccounts.total || 0}</small></div>
-          <div class="kpi-delta ${ovAccounts.expired ? "down" : "up"}">${
-      ovAccounts.expired ? `${ovAccounts.expired} 个需要重新登录` : "全部登录正常"
-    }</div>
+          <div class="kpi-sub">${
+            ovAccounts.expired
+              ? `<span class="pill warn" style="height:18px;font-size:10.5px">${ovAccounts.expired} 个需重新登录</span>`
+              : "全部登录正常"
+          }</div>
         </div>
-        <div class="kpi">
-          <span class="kpi-label">待用选题<i class="kpi-ico">${icon("list", "ico")}</i></span>
+        <div class="card kpi">
+          <div class="kpi-top"><span class="kpi-label">待用选题</span><span class="kpi-icon">${icon("bulb", "ico")}</span></div>
           <div class="kpi-value">${ovTopics.pool || 0}<small>条</small></div>
-          <div class="kpi-delta up">选题池可用</div>
+          <div class="kpi-sub">选题池可用</div>
         </div>
       </div>
 
-      <section class="dash-card span-8">
-        <div class="dash-head"><b>近 7 天发布趋势</b><span class="dash-legend"><i></i>成功<i class="bad"></i>失败</span></div>
-        <div class="chart">${chart}</div>
-      </section>
-
-      <section class="dash-card span-4">
-        <div class="dash-head"><b>账号状态</b>
-          <button class="link-btn" type="button" data-dash-go="accounts">查看全部</button>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-head">
+            <h3>近 7 天发布趋势</h3>
+            <div class="right chart-legend"><span><i class="lg xhs"></i>成功</span><span><i class="lg dy"></i>失败</span></div>
+          </div>
+          <div class="chart">
+            <div class="chart-plot">${chart}</div>
+            <div class="chart-axis">${chartAxis}</div>
+          </div>
         </div>
-        <div class="dash-accounts">${accountList}</div>
-      </section>
-
-      <section class="dash-card span-8">
-        <div class="dash-head"><b>最近发布</b>
-          <button class="link-btn" type="button" data-dash-go="records">发布记录</button>
+        <div class="card">
+          <div class="card-head">
+            <h3>账号状态</h3>
+            <div class="right"><button class="link-btn" type="button" data-dash-go="accounts">查看全部</button></div>
+          </div>
+          <div class="acct-list">${accountList}</div>
         </div>
-        <table class="dash-table">
-          <thead><tr><th>内容</th><th>平台</th><th>账号</th><th>时间</th><th>状态</th></tr></thead>
-          <tbody>${latestRows}</tbody>
-        </table>
-      </section>
+      </div>
 
-      <section class="dash-card span-4">
-        <div class="dash-head"><b>待处理</b><span>${todoItems.length} 项</span></div>
-        <div class="dash-todo">${todoList}</div>
-      </section>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-head">
+            <h3>最近发布</h3>
+            <div class="right"><button class="link-btn" type="button" data-dash-go="records">发布记录</button></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>内容</th><th>平台</th><th>账号</th><th>时间</th><th>状态</th></tr></thead>
+              <tbody>${latestRows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>待处理</h3><div class="right"><span class="pill ${todoItems.length ? "bad" : "ok"}">${todoItems.length} 项</span></div></div>
+          <div class="todo-list">${todoList}</div>
+        </div>
+      </div>
     `;
   }
 
@@ -1456,42 +1524,49 @@
     const sameDay = (a, b) =>
       a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
+    const platMeta = {
+      xiaohongshu: ["xhs", "红"],
+      douyin: ["dy", "抖"],
+      wechat_mp: ["wx", "公"],
+    };
     const columns = days
       .map((day) => {
         const events = day.events
-          .slice(0, 3)
+          .slice(0, 4)
           .map((job) => {
             const date = new Date(jobTime(job) * 1000);
             const hh = String(date.getHours()).padStart(2, "0");
             const mm = String(date.getMinutes()).padStart(2, "0");
-            const dot = PLATFORM_DOTS[job.platform] || "var(--ink-3)";
+            const [cls, label] = platMeta[job.platform] || ["", ""];
             const platform = typeof platformName === "function" ? platformName(job.platform) : job.platform;
-            return `<button class="week-event" type="button" data-week-go="queue" title="${safeEsc(job.draft_title || "")}">
-              <span class="week-time">${hh}:${mm}</span>
-              <span class="week-title">${safeEsc(job.draft_title || "未命名内容")}</span>
-              <span class="week-meta"><i class="pdot" style="background:${dot}"></i>${safeEsc(platform)}${
+            return `<button class="cal-ev" type="button" data-week-go="queue" title="${safeEsc(job.draft_title || "")}${
               job.account_name ? ` · ${safeEsc(job.account_name)}` : ""
-            }</span>
+            }">
+              <span class="plat ${cls}">${label || safeEsc(String(platform || "?").slice(0, 1))}</span>
+              <span class="ce-t">${safeEsc(job.draft_title || "未命名内容")}</span>
+              <span class="ce-m">${hh}:${mm}</span>
             </button>`;
           })
           .join("");
-        const more = day.events.length > 3 ? `<span class="week-more">还有 ${day.events.length - 3} 个</span>` : "";
-        return `<div class="week-day${sameDay(day.date, now) ? " today" : ""}">
-          <div class="week-day-head"><b>${day.name}</b><span>${day.date.getMonth() + 1}/${day.date.getDate()}</span></div>
-          <div class="week-events">${events || '<span class="week-empty">—</span>'}${more}</div>
+        const more = day.events.length > 4 ? `<span class="week-more">还有 ${day.events.length - 4} 个</span>` : "";
+        return `<div class="cal-col${sameDay(day.date, now) ? " today" : ""}">
+          <div class="cal-day"><b>${day.name}</b><span>${day.date.getMonth() + 1}/${day.date.getDate()}</span></div>
+          <div class="cal-drop">${events || '<span class="week-empty">—</span>'}${more}</div>
         </div>`;
       })
       .join("");
 
     board.hidden = false;
     board.innerHTML = `
-      <div class="week-board-head">
-        <div class="week-board-title"><b>本周排期</b><span>${start.getMonth() + 1}月${start.getDate()}日 - ${
-      end.getMonth() + 1
-    }月${end.getDate() - 1}日 · ${total} 个任务</span></div>
-        <button class="link-btn" type="button" data-week-go="queue">查看队列</button>
+      <div class="cal-head">
+        <h3>本周排期</h3>
+        <span class="muted">拖动卡片调整日期，同平台同时段会提示冲突</span>
+        <span class="spacer"></span>
+        <span class="muted tabular">${start.getMonth() + 1}/${start.getDate()} – ${end.getMonth() + 1}/${
+      end.getDate() - 1
+    }</span>
       </div>
-      <div class="week-grid">${columns}</div>`;
+      <div class="cal">${columns}</div>`;
   }
 
   function bindWeekBoard() {
@@ -1664,27 +1739,71 @@
           existing.remove();
           return;
         }
-        const device = $(".preview-pane .preview-device");
-        if (!device) return;
+        const keys = [["小红书", "xiaohongshu"], ["抖音", "douyin"], ["公众号", "wechat_mp"]];
+        let active = "xiaohongshu";
         const layer = document.createElement("div");
         layer.className = "threeup-layer";
-        ["小红书", "抖音", "公众号"].forEach((name) => {
-          const card = document.createElement("div");
-          card.className = "threeup-card";
-          const title = document.createElement("div");
-          title.className = "threeup-title";
-          title.textContent = name;
-          const clone = device.cloneNode(true);
+        const gallery = document.createElement("div");
+        gallery.className = "threeup-gallery";
+        layer.appendChild(gallery);
+
+        const cloneDevice = (key) => {
+          const source = document.querySelector(`.preview-pane .preview-device[data-preview="${key}"]`);
+          if (!source) return null;
+          const clone = source.cloneNode(true);
+          clone.removeAttribute("hidden");
+          clone.hidden = false;
           clone.removeAttribute("id");
           clone.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
-          clone.classList.add("mini");
-          card.appendChild(title);
-          card.appendChild(clone);
-          layer.appendChild(card);
-        });
+          clone.querySelectorAll("[hidden]").forEach((node) => node.removeAttribute("hidden"));
+          return clone;
+        };
+
+        const render = () => {
+          gallery.innerHTML = "";
+          const main = document.createElement("div");
+          main.className = "threeup-item threeup-main";
+          const mainTitle = document.createElement("div");
+          mainTitle.className = "threeup-title";
+          const activeMeta = keys.find((item) => item[1] === active) || keys[0];
+          mainTitle.textContent = activeMeta[0];
+          main.appendChild(mainTitle);
+          const mainDevice = cloneDevice(active);
+          if (mainDevice) main.appendChild(mainDevice);
+
+          const side = document.createElement("div");
+          side.className = "threeup-side";
+          keys.filter((item) => item[1] !== active).forEach(([name, key]) => {
+            const mini = document.createElement("div");
+            mini.className = "threeup-mini";
+            mini.dataset.key = key;
+            const title = document.createElement("div");
+            title.className = "threeup-title";
+            title.textContent = name;
+            const frame = document.createElement("div");
+            frame.className = "threeup-mini-frame";
+            const device = cloneDevice(key);
+            if (device) frame.appendChild(device);
+            mini.appendChild(title);
+            mini.appendChild(frame);
+            side.appendChild(mini);
+          });
+          gallery.append(main, side);
+        };
+
         layer.addEventListener("click", (event) => {
-          if (event.target === layer) layer.remove();
+          if (event.target === layer || event.target === gallery) {
+            layer.remove();
+            return;
+          }
+          const mini = event.target.closest(".threeup-mini");
+          if (mini) {
+            active = mini.dataset.key;
+            render();
+          }
         });
+
+        render();
         document.body.appendChild(layer);
       });
     }
@@ -1760,9 +1879,9 @@
     const studio = $(".studio");
     if (!studio || studio.dataset.resizeReady) return;
     studio.dataset.resizeReady = "1";
-    const STORE_KEY = "echoq-studio-cols";
+    const STORE_KEY = "echoq-studio-cols-v3";
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-    let config = { left: 300, right: 352 };
+    let config = { left: 300, right: 380 };
     try {
       config = Object.assign(config, JSON.parse(localStorage.getItem(STORE_KEY) || "{}"));
     } catch (error) {
@@ -1801,7 +1920,7 @@
       handle.title = "拖动调整栏宽，双击恢复默认";
       handle.addEventListener("dblclick", () => {
         config.left = side === "left" ? 300 : config.left;
-        config.right = side === "right" ? 352 : config.right;
+        config.right = side === "right" ? 380 : config.right;
         apply();
         persist();
       });
@@ -1838,6 +1957,143 @@
     if (typeof ResizeObserver === "function") new ResizeObserver(apply).observe(studio);
   }
 
+  function initStudioSteps() {
+    const nav = $(".studio-steps");
+    if (!nav || nav.dataset.stepsReady) return;
+    nav.dataset.stepsReady = "1";
+    const steps = $$(".studio-step", nav);
+    const panels = $$(".step-panel");
+    const scroll = $(".publish-scroll");
+
+    // 完成态按内容判断，而不是点过就算做完
+    const doneState = {
+      copy: () => !!($("#f-title") && $("#f-title").value.trim() && $("#f-desc") && $("#f-desc").value.trim()),
+      media: () => {
+        const card = $(".media-card");
+        const grid = $(".media-grid");
+        return !!((card && card.classList.contains("has-media")) || (grid && grid.children.length));
+      },
+      publish: () => !!(document.querySelector("#f-platform .active") && $("#account-chips .active")),
+    };
+
+    function refreshDone() {
+      steps.forEach((step) => {
+        const name = step.dataset.studioStep;
+        const active = step.classList.contains("active");
+        const done = !active && !!(doneState[name] && doneState[name]());
+        step.classList.toggle("done", done);
+      });
+    }
+
+    const setStep = (name) => {
+      const index = steps.findIndex((step) => step.dataset.studioStep === name);
+      if (index < 0) return;
+      steps.forEach((step, i) => {
+        const active = i === index;
+        step.classList.toggle("active", active);
+        step.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.stepPanel !== name;
+      });
+      if (scroll) scroll.scrollTop = 0;
+      refreshDone();
+    };
+
+    nav.addEventListener("click", (event) => {
+      const button = event.target.closest(".studio-step");
+      if (button) setStep(button.dataset.studioStep);
+    });
+    document.addEventListener("input", (event) => {
+      if (event.target.closest("#view-studio")) refreshDone();
+    }, true);
+    document.addEventListener("change", (event) => {
+      if (event.target.closest("#view-studio")) refreshDone();
+    }, true);
+    if (scroll) {
+      new MutationObserver(refreshDone).observe(scroll, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
+    refreshDone();
+  }
+
+  /* 创作台初次使用引导：只在第一次进入创作台时出现 */
+  function initStudioTour() {
+    const KEY = "echoq.studio.tour.v1";
+    const steps = [
+      { icon: "i-users", kicker: "第 1 步 / 共 3 步", title: "先绑定你的发布账号", desc: "小红书、抖音、公众号逐个扫码授权，之后发布、定时与失败重试都由应声运营代劳。" },
+      { icon: "i-pen", kicker: "第 2 步 / 共 3 步", title: "用 AI 起草第一版文案", desc: "写一句需求就能出标题、正文和话题；语气风格会影响起草结果，随时可换。" },
+      { icon: "i-send", kicker: "第 3 步 / 共 3 步", title: "配图、检查、发布", desc: "生成配图并过一遍发布前检查，三个步骤走完就能一键发出。" },
+    ];
+    let index = 0;
+    let layer = null;
+
+    const close = () => {
+      localStorage.setItem(KEY, "done");
+      if (layer) {
+        layer.remove();
+        layer = null;
+      }
+    };
+
+    const render = () => {
+      if (!layer) return;
+      const step = steps[index];
+      layer.querySelector(".studio-tour-kicker").textContent = step.kicker;
+      layer.querySelector(".studio-tour-body h2").textContent = step.title;
+      layer.querySelector(".studio-tour-body p").textContent = step.desc;
+      const use = layer.querySelector(".art-badge use");
+      if (use) use.setAttribute("href", "#" + step.icon);
+      layer.querySelectorAll(".studio-tour-dots i").forEach((dot, i) => dot.classList.toggle("on", i === index));
+      layer.querySelector("[data-tour-next]").textContent = index === steps.length - 1 ? "开始创作" : "下一步";
+    };
+
+    const open = () => {
+      if (layer || localStorage.getItem(KEY) === "done") return;
+      layer = document.createElement("div");
+      layer.className = "studio-tour";
+      layer.innerHTML = `
+        <div class="studio-tour-card" role="dialog" aria-modal="true" aria-label="创作台使用引导">
+          <button class="studio-tour-close" type="button" aria-label="关闭">×</button>
+          <div class="studio-tour-art"><span class="art-badge"><svg class="ico" width="26" height="26"><use href="#i-users"></use></svg></span></div>
+          <div class="studio-tour-body">
+            <div class="studio-tour-kicker"></div>
+            <h2></h2>
+            <p></p>
+            <div class="studio-tour-dots"><i class="on"></i><i></i><i></i></div>
+            <div class="studio-tour-foot">
+              <button class="studio-tour-skip" type="button" data-tour-skip>稍后再说</button>
+              <button class="btn primary" type="button" data-tour-next>下一步</button>
+            </div>
+          </div>
+        </div>`;
+      layer.addEventListener("click", (event) => {
+        if (event.target === layer || event.target.closest(".studio-tour-close") || event.target.closest("[data-tour-skip]")) {
+          close();
+          return;
+        }
+        if (event.target.closest("[data-tour-next]")) {
+          if (index === steps.length - 1) {
+            close();
+            return;
+          }
+          index += 1;
+          render();
+        }
+      });
+      document.body.appendChild(layer);
+      render();
+    };
+
+    document.addEventListener("click", (event) => {
+      if (event.target.closest('[data-view="studio"]')) window.setTimeout(open, 320);
+    });
+  }
+
   function initRecordFilters() {
     const search = $("#record-search");
     const table = $("#record-table tbody");
@@ -1850,16 +2106,11 @@
       const res = result ? result.value : "";
       $$("#record-table tbody tr").forEach((row) => {
         if (row.querySelector("td[colspan]")) return;
-        const cells = row.children;
         const text = row.textContent.toLowerCase();
         let show = true;
         if (query && !text.includes(query)) show = false;
-        if (plat && cells[1] && !cells[1].textContent.includes(plat)) show = false;
-        if (res && cells[4]) {
-          const cell = cells[4].textContent;
-          if (res === "ok" && !cell.includes("成功")) show = false;
-          if (res === "failed" && !cell.includes("失败")) show = false;
-        }
+        if (plat && row.dataset.platform !== plat) show = false;
+        if (res && row.dataset.result !== res) show = false;
         row.style.display = show ? "" : "none";
       });
     };
@@ -1869,6 +2120,39 @@
     new MutationObserver(apply).observe(table, { childList: true });
     const refresh = $("#btn-refresh-records-2");
     if (refresh) refresh.addEventListener("click", () => clickButton("#btn-refresh-records"));
+    const summary = $("#record-summary");
+    if (summary && !summary.dataset.ready) {
+      summary.dataset.ready = "1";
+      summary.addEventListener("click", (event) => {
+        if (!event.target.closest("#record-failed-only") || !result) return;
+        result.value = "failed";
+        result.dispatchEvent(new Event("change"));
+      });
+    }
+  }
+
+  function initQueueFilters() {
+    const view = $("#view-queue");
+    if (!view || view.dataset.queueReady) return;
+    view.dataset.queueReady = "1";
+    view.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-queue-filter]");
+      if (!chip) return;
+      $$("#queue-filter button").forEach((node) => node.classList.toggle("active", node === chip));
+      const mode = chip.dataset.queueFilter;
+      const wanted = {
+        pending: ["pending", "running", "pending_confirm"],
+        failed: ["failed", "cancelled"],
+        retry: ["retry"],
+      }[mode];
+      $$("#job-list .q-row").forEach((row) => {
+        row.style.display = !wanted || wanted.includes(row.dataset.jobStatus) ? "" : "none";
+      });
+      $$("#job-list .queue-group").forEach((group) => {
+        const visible = $$(".q-row", group).some((row) => row.style.display !== "none");
+        group.style.display = visible ? "" : "none";
+      });
+    });
   }
 
   function initScheduleFilters() {
@@ -1878,21 +2162,521 @@
     summary.addEventListener("click", (event) => {
       const chip = event.target.closest("[data-sched-filter]");
       if (!chip) return;
-      $$("#schedule-summary .chip").forEach((node) => node.classList.toggle("active", node === chip));
+      $$("#schedule-summary .seg button").forEach((node) => node.classList.toggle("active", node === chip));
       const mode = chip.dataset.schedFilter;
-      $$("#schedule-list .schedule-card, .schedule-list .schedule-card").forEach((card) => {
-        const state = card.querySelector(".state");
-        const enabled = state && (state.classList.contains("on") || state.classList.contains("busy"));
-        const paused = state && (state.classList.contains("paused") || state.classList.contains("off"));
-        card.style.display = !mode || (mode === "on" ? enabled : paused) ? "" : "none";
+      $$("#schedule-list .schedule-plan").forEach((card) => {
+        const enabled = card.dataset.enabled === "1";
+        card.style.display = !mode || (mode === "on" ? enabled : !enabled) ? "" : "none";
+      });
+      $$("#schedule-list .schedule-group").forEach((group) => {
+        const cards = $$(".schedule-plan", group);
+        const visible = cards.some((card) => card.style.display !== "none");
+        group.style.display = visible ? "" : "none";
       });
     });
+  }
+
+  /* ------------------------------------------------------------------ 外壳（标题栏 / 主题 / 视图跳转） */
+
+  const THEME_KEY = "echoq-theme";
+  const mediaDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function resolveTheme(pref) {
+    return pref === "auto" ? (mediaDark.matches ? "dark" : "light") : pref;
+  }
+
+  function currentTheme() {
+    return document.documentElement.dataset.theme || "light";
+  }
+
+  function applyThemePref(pref, persist = true) {
+    const theme = resolveTheme(pref);
+    document.documentElement.dataset.theme = theme;
+    const icon = $("#theme-icon use");
+    if (icon) icon.setAttribute("href", theme === "dark" ? "#i-sun" : "#i-moon");
+    const label = $("#up-theme-label");
+    if (label) label.textContent = theme === "dark" ? "深色" : "浅色";
+    $$(".theme-card").forEach((card) => {
+      card.classList.toggle("active", card.dataset.themeValue === pref);
+    });
+    const switchNode = $("#profile-theme-switch");
+    if (switchNode) switchNode.classList.toggle("on", theme === "dark");
+    if (persist) {
+      try {
+        localStorage.setItem(THEME_KEY, pref);
+      } catch (error) {
+        /* ignore */
+      }
+    }
+  }
+
+  function toggleTheme() {
+    applyThemePref(currentTheme() === "dark" ? "light" : "dark");
+  }
+
+  function initShell() {
+    let pref = "light";
+    try {
+      pref = localStorage.getItem(THEME_KEY) || (mediaDark.matches ? "auto" : "light");
+    } catch (error) {
+      /* ignore */
+    }
+    applyThemePref(pref, false);
+    const dark = $("#btn-dark");
+    if (dark) dark.addEventListener("click", toggleTheme);
+
+    if (window.electronWin) {
+      const bind = (selector, action) => {
+        const node = $(selector);
+        if (node) node.addEventListener("click", action);
+      };
+      bind("#app-min", () => window.electronWin.minimize());
+      bind("#app-max", () => window.electronWin.toggleMaximize());
+      bind("#app-close", () => window.electronWin.close());
+      const drag = $(".tb-drag");
+      if (drag) drag.addEventListener("dblclick", () => window.electronWin.toggleMaximize());
+      if (typeof window.electronWin.onMaximized === "function") {
+        window.electronWin.onMaximized((maximized) => {
+          document.documentElement.classList.toggle("win-maximized", maximized);
+        });
+      }
+    }
+
+    document.addEventListener("click", (event) => {
+      const viewBtn = event.target.closest("[data-view]");
+      if (viewBtn && !viewBtn.classList.contains("tab")) {
+        event.preventDefault();
+        closeUserPop();
+        const name = viewBtn.dataset.view;
+        if (name === "settings" || name === "profile") {
+          openWindow(name);
+          return;
+        }
+        switchView(name);
+      }
+    });
+
+    const menu = $("#tb-menu");
+    if (menu) {
+      menu.addEventListener("click", (event) => {
+        const head = event.target.closest(".tb-m > button");
+        if (head) {
+          const group = head.parentElement;
+          const open = group.classList.contains("open");
+          $$("#tb-menu .tb-m.open").forEach((node) => node.classList.remove("open"));
+          if (!open) group.classList.add("open");
+          return;
+        }
+        const item = event.target.closest("[data-act]");
+        if (!item) return;
+        const act = item.dataset.act;
+        if (act.startsWith("go-")) {
+          switchView(act.slice(3));
+        } else if (act === "new") {
+          switchView("studio");
+          clickButton("#btn-new-note");
+        } else if (act === "palette") {
+          openPalette();
+        } else if (act === "theme") {
+          const darkBtn = $("#btn-dark");
+          if (darkBtn) darkBtn.click();
+        } else if (act === "help" || act === "shortcuts" || act === "about" || act === "update") {
+          toast(act === "about" ? "应声运营 EchoQ Ops · v2.4.0" : "帮助中心正在准备中");
+        } else if (act === "find") {
+          openPalette();
+        } else if (act === "quit") {
+          window.close();
+        } else if (act === "export") {
+          toast("导出功能请在各页面使用对应按钮");
+        } else if (act === "undo" || act === "redo") {
+          document.execCommand(act);
+        }
+        $$("#tb-menu .tb-m.open").forEach((node) => node.classList.remove("open"));
+      });
+    }
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#tb-menu .tb-m")) {
+        $$("#tb-menu .tb-m.open").forEach((node) => node.classList.remove("open"));
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------------ 账户菜单 / 设置 / 个人中心 */
+
+  let winView = null;
+  let winPlaceholder = null;
+
+  function cloudUser() {
+    return (state.cloud && state.cloud.user) || {};
+  }
+
+  function cloudSub() {
+    return (state.cloud && state.cloud.subscription) || {};
+  }
+
+  function syncUserPop() {
+    const user = cloudUser();
+    const sub = cloudSub();
+    const cloud = state.cloud || {};
+    const overview = state.overview || {};
+    const accounts = Array.isArray(state.accounts) ? state.accounts : [];
+    const name = user.display_name || user.nickname || user.phone || user.email || ($("#side-user-name") || {}).textContent || "本地用户";
+    const email = user.email || (cloud.logged_in ? user.phone || "已登录" : "本地模式 · 未登录云端");
+    const first = String(name).trim().slice(0, 1);
+    const avatarText = first && !/\d/.test(first) ? first : "应";
+    const planName = sub.plan_name || (cloud.logged_in ? "已登录" : "本地版");
+    const used = Number(sub.used_units || 0);
+    const quota = Number(sub.quota_units || 0);
+    const today = Number(overview.today_published || 0);
+    const left = sub.remaining_units != null ? Number(sub.remaining_units) : quota ? Math.max(0, quota - used) : 0;
+    const days = sub.days_left != null ? Number(sub.days_left) : 0;
+
+    const set = (sel, text) => {
+      const node = $(sel);
+      if (node) node.textContent = text;
+    };
+    set("#up-avatar", avatarText);
+    set("#up-name", name);
+    set("#up-email", email);
+    set("#up-plan", planName);
+    set("#up-quota-value", quota ? `${used} / ${quota}` : `${today} 篇`);
+    set("#up-quota-foot", quota ? `剩余 ${left} 次${days ? ` · ${days} 天后重置` : ""}` : "本地模式 · 未连接云端");
+    set("#up-accounts", `${accounts.length} 个账号`);
+    const bar = $("#up-quota-bar");
+    if (bar) bar.style.width = quota ? `${Math.min(100, Math.round((used / quota) * 100))}%` : `${today ? 12 : 0}%`;
+    const unread = Number(state.notificationsUnread || 0);
+    const badge = $("#up-notify-badge");
+    if (badge) {
+      badge.textContent = String(unread);
+      badge.hidden = !unread;
+    }
+  }
+
+  function openUserPop() {
+    const pop = $("#user-pop");
+    const btn = $("#btn-account");
+    if (!pop || !btn) return;
+    syncUserPop();
+    pop.hidden = false;
+    const rect = btn.getBoundingClientRect();
+    const width = pop.offsetWidth;
+    const height = pop.offsetHeight;
+    let left = Math.min(Math.max(8, rect.left - 4), window.innerWidth - width - 8);
+    let top = rect.top - height - 8;
+    if (top < 8) top = Math.min(rect.bottom + 8, window.innerHeight - height - 8);
+    pop.style.left = `${left}px`;
+    pop.style.top = `${Math.max(8, top)}px`;
+  }
+
+  function closeUserPop() {
+    const pop = $("#user-pop");
+    if (pop) pop.hidden = true;
+  }
+
+  function initAccountUI() {
+    const pop = $("#user-pop");
+    const btn = $("#btn-account");
+    if (!pop || !btn) return;
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (!event.target.closest("#btn-account")) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (pop.hidden) openUserPop();
+        else closeUserPop();
+      },
+      true
+    );
+
+    pop.addEventListener("click", (event) => {
+      if (event.target.closest("#up-theme")) {
+        toggleTheme();
+        syncUserPop();
+        return;
+      }
+      if (event.target.closest("#up-notify")) {
+        closeUserPop();
+        const bell = $("#btn-notify");
+        if (bell) bell.click();
+        return;
+      }
+      if (event.target.closest("#up-help")) {
+        closeUserPop();
+        toast("帮助中心正在准备中");
+        return;
+      }
+      if (event.target.closest("#up-update")) {
+        toast("已是最新版本 v2.4.0");
+        return;
+      }
+      if (event.target.closest("#up-quit")) {
+        closeUserPop();
+        confirmDialog("退出后将停止所有定时发布任务，重新登录即可恢复。", "退出登录").then((ok) => {
+          if (ok && typeof logoutCloud === "function") logoutCloud();
+        });
+      }
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (pop.hidden) return;
+      if (event.target.closest("#user-pop") || event.target.closest("#btn-account")) return;
+      closeUserPop();
+    });
+    window.addEventListener("resize", closeUserPop);
+  }
+
+  function openWindow(name) {
+    const view = $(`#view-${name}`);
+    const body = $("#win-body");
+    const layer = $("#win-layer");
+    if (!view || !body || !layer) return;
+    if (winView) closeWindow();
+    winPlaceholder = document.createComment("win-host");
+    view.parentNode.insertBefore(winPlaceholder, view);
+    body.appendChild(view);
+    view.classList.add("active", "in-win");
+    winView = view;
+    const isProfile = name === "profile";
+    const title = $("#win-title");
+    const sub = $("#win-sub");
+    if (title) title.textContent = isProfile ? "个人中心" : "设置";
+    if (sub) sub.textContent = isProfile ? "账号、订阅与偏好" : "修改后立即生效";
+    $("#win").classList.toggle("profile", isProfile);
+    layer.hidden = false;
+    closeUserPop();
+    const bell = $("#notify-pop");
+    if (bell) bell.hidden = true;
+    const scroller = view.querySelector(".view-scroll");
+    if (scroller) scroller.scrollTop = 0;
+    if (isProfile) syncProfile();
+    else syncSettings();
+  }
+
+  function closeWindow() {
+    const layer = $("#win-layer");
+    if (!winView) {
+      if (layer) layer.hidden = true;
+      return;
+    }
+    winView.classList.remove("active", "in-win");
+    if (winPlaceholder && winPlaceholder.parentNode) {
+      winPlaceholder.parentNode.insertBefore(winView, winPlaceholder);
+      winPlaceholder.remove();
+    }
+    winView = null;
+    winPlaceholder = null;
+    if (layer) layer.hidden = true;
+  }
+
+  function initWindows() {
+    const layer = $("#win-layer");
+    const close = $("#win-close");
+    if (close) close.addEventListener("click", closeWindow);
+    if (layer) {
+      layer.addEventListener("click", (event) => {
+        if (event.target === layer) closeWindow();
+      });
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (winView) closeWindow();
+      else closeUserPop();
+    });
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === ",") {
+        event.preventDefault();
+        closeUserPop();
+        openWindow("settings");
+      }
+    });
+  }
+
+  function syncProfile() {
+    const user = cloudUser();
+    const sub = cloudSub();
+    const cloud = state.cloud || {};
+    const overview = state.overview || {};
+    const accounts = Array.isArray(state.accounts) ? state.accounts : [];
+    const name = user.display_name || user.nickname || user.phone || "本地用户";
+    const emailText = user.email || user.phone || "本地模式 · 未登录云端";
+    const joined = user.created_at ? String(user.created_at).slice(0, 10) : "本地模式";
+    const set = (sel, text) => {
+      const node = $(sel);
+      if (node) node.textContent = text;
+    };
+    const first = String(name).trim().slice(0, 1);
+    set("#profile-avatar", first && !/\d/.test(first) ? first : "应");
+    set("#profile-name", name);
+    set("#profile-email", emailText);
+    set("#profile-joined", joined);
+    set("#profile-plan-pill", sub.plan_name || (cloud.logged_in ? "已登录" : "本地模式"));
+    set("#profile-plan-name", sub.plan_name || (cloud.logged_in ? "已登录" : "未订阅"));
+    set("#profile-plan-meta", sub.plan_name
+      ? `${sub.ends_at ? `${String(sub.ends_at).slice(0, 10)} 到期` : "长期有效"}${sub.days_left ? ` · 剩余 ${sub.days_left} 天` : ""}`
+      : "登录云端后可查看订阅信息");
+
+    const used = Number(sub.used_units || 0);
+    const quota = Number(sub.quota_units || 0);
+    const today = Number(overview.today_published || 0);
+    const postValue = quota ? `${used} / ${quota}` : `${today} 篇`;
+    set("#profile-usage-posts", postValue);
+    const postBar = $("#profile-usage-posts-bar");
+    if (postBar) postBar.style.width = quota ? `${Math.min(100, Math.round((used / quota) * 100))}%` : `${today ? 12 : 0}%`;
+    set("#profile-usage-ai", quota ? `${used} / ${quota}` : "本地模式");
+    const aiBar = $("#profile-usage-ai-bar");
+    if (aiBar) aiBar.style.width = quota ? `${Math.min(100, Math.round((used / quota) * 100))}%` : "0%";
+    set("#profile-usage-accounts", `${accounts.length} / 10`);
+    const accBar = $("#profile-usage-accounts-bar");
+    if (accBar) accBar.style.width = `${Math.min(100, accounts.length * 10)}%`;
+
+    const nameInput = $("#profile-input-name");
+    const phoneInput = $("#profile-input-phone");
+    const emailInput = $("#profile-input-email");
+    if (nameInput) nameInput.value = user.display_name || user.nickname || "";
+    if (phoneInput) phoneInput.value = user.phone || "";
+    if (emailInput) emailInput.value = user.email || "";
+    const themeSwitch = $("#profile-theme-switch");
+    if (themeSwitch) themeSwitch.classList.toggle("on", currentTheme() === "dark");
+  }
+
+  function initProfile() {
+    const view = $("#view-profile");
+    if (!view) return;
+    const save = $("#profile-save");
+    if (save) {
+      save.addEventListener("click", () => {
+        const user = cloudUser();
+        const name = ($("#profile-input-name") || {}).value || "";
+        if (name) {
+          user.display_name = name;
+          const sideName = $("#side-user-name");
+          if (sideName) sideName.textContent = name;
+          const avatar = $("#side-avatar");
+          if (avatar) avatar.textContent = String(name).trim().slice(0, 1) || "应";
+        }
+        syncUserPop();
+        syncProfile();
+        toast("资料已保存");
+      });
+    }
+    const themeSwitch = $("#profile-theme-switch");
+    if (themeSwitch) {
+      themeSwitch.addEventListener("click", () => {
+        toggleTheme();
+        syncProfile();
+      });
+    }
+    const logout = $("#profile-logout");
+    if (logout) {
+      logout.addEventListener("click", () => {
+        confirmDialog("退出后将停止所有定时发布任务，重新登录即可恢复。", "退出登录").then((ok) => {
+          if (ok && typeof logoutCloud === "function") {
+            logoutCloud();
+            closeWindow();
+          }
+        });
+      });
+    }
+    const simple = {
+      "#profile-password": "修改密码功能请前往账号与登录",
+      "#profile-help": "帮助中心正在准备中",
+      "#profile-update": "已是最新版本 v2.4.0",
+      "#profile-feedback": "帮助中心正在准备中",
+      "#profile-manage-plan": "订阅管理请前往云端控制台",
+      "#profile-delete": "删除账号前请先导出数据",
+    };
+    Object.entries(simple).forEach(([selector, message]) => {
+      const node = $(selector);
+      if (node) node.addEventListener("click", () => toast(message));
+    });
+    $$("[data-profile-action]").forEach((node) => {
+      node.addEventListener("click", () => toast("该功能请前往账号与登录"));
+    });
+  }
+
+  const SETTINGS_KEY = "echoq-settings";
+
+  function settingsMap() {
+    try {
+      return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") || {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveSetting(key, value) {
+    const data = settingsMap();
+    data[key] = value;
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  function syncSettings() {
+    const data = settingsMap();
+    $$("[data-toggle]").forEach((node) => {
+      const key = node.dataset.toggle;
+      const value = data[key];
+      if (typeof value === "boolean") node.classList.toggle("on", value);
+    });
+    const platform = $("#set-default-platform");
+    if (platform && data.default_platform) platform.value = data.default_platform;
+  }
+
+  function initSettings() {
+    const nav = $("#set-nav");
+    if (nav) {
+      nav.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-set]");
+        if (!button) return;
+        $$("#set-nav button").forEach((node) => node.classList.toggle("active", node === button));
+        $$("#set-panels [data-panel]").forEach((panel) => {
+          panel.hidden = panel.dataset.panel !== button.dataset.set;
+        });
+      });
+    }
+    $$("[data-toggle]").forEach((node) => {
+      node.addEventListener("click", () => {
+        node.classList.toggle("on");
+        saveSetting(node.dataset.toggle, node.classList.contains("on"));
+      });
+    });
+    $$(".theme-card").forEach((card) => {
+      card.addEventListener("click", () => applyThemePref(card.dataset.themeValue));
+    });
+    const platform = $("#set-default-platform");
+    if (platform) platform.addEventListener("change", () => saveSetting("default_platform", platform.value));
+    const backup = $("#set-backup-now");
+    if (backup) {
+      backup.addEventListener("click", async () => {
+        try {
+          await api("/api/backups", { method: "POST" });
+          toast("备份已生成");
+        } catch (error) {
+          toast(error.message || "备份失败", true);
+        }
+      });
+    }
+    const exportAll = $("#set-export-all");
+    if (exportAll) exportAll.addEventListener("click", () => toast("导出功能请前往发布记录"));
+    const onboarding = $("#set-onboarding");
+    if (onboarding) onboarding.addEventListener("click", () => toast("引导已重置，下次启动时展示"));
   }
 
   /* ------------------------------------------------------------------ 启动 */
 
   function init() {
+    initShell();
+    initWindows();
+    initAccountUI();
+    initProfile();
+    initSettings();
     initCollapse();
+    initRailTips();
     wrapSwitchView();
     bindHome();
     bindDashboard();
@@ -1902,7 +2686,10 @@
     initStudioPreview();
     initStudioTools();
     initStudioResize();
+    initStudioSteps();
+    initStudioTour();
     initRecordFilters();
+    initQueueFilters();
     initScheduleFilters();
     observeAccounts();
     observeNotifications();

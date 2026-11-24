@@ -1,0 +1,67 @@
+{
+  "name": "echoq-ops-desktop-next",
+  "version": "0.1.0",
+  "private": true,
+  "description": "应声运营桌面版（Node/TypeScript 主进程）",
+  "author": "应声",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron .",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder --win nsis portable",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^20.17.10",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.2"
+  },
+  "build": {
+    "appId": "ai.echoq.ops.next",
+    "productName": "应声运营 Next",
+    "directories": {
+      "output": "../release/desktop"
+    },
+    "files": [
+      "dist/**",
+      "public/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "../ops/web/static",
+        "to": "web"
+      }
+    ],
+    "win": {
+      "icon": "../build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "应声运营 Next",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "EchoQ-Ops-Next-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "EchoQ-Ops-Next-Portable-${version}.${ext}"
+    }
+  }
+}

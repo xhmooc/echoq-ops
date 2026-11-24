@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, dialog, shell, nativeImage } = require("electron");
+const { app, BrowserWindow, Tray, Menu, dialog, shell, nativeImage, ipcMain } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -189,15 +189,19 @@ function createWindow() {
     title: APP_NAME,
     icon: asset("icon.ico"),
     backgroundColor: "#f6f4ef",
+    frame: false,
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
   });
   win.removeMenu();
+  win.on("maximize", () => win.webContents.send("win:maximized", true));
+  win.on("unmaximize", () => win.webContents.send("win:maximized", false));
   win.loadURL(APP_URL);
   win.once("ready-to-show", () => {
     log("window ready-to-show");
@@ -249,6 +253,18 @@ function createTray() {
   );
   tray.on("click", showWindow);
 }
+
+ipcMain.on("win:minimize", () => {
+  if (win) win.minimize();
+});
+ipcMain.on("win:toggle-maximize", () => {
+  if (!win) return;
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+});
+ipcMain.on("win:close", () => {
+  if (win) win.close();
+});
 
 const locked = app.requestSingleInstanceLock();
 log(`single instance lock: ${locked}`);

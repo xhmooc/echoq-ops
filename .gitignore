@@ -37,6 +37,7 @@ qrcode_login.png
 /release/
 /dist/
 /dist-electron/
+/desktop/dist/
 /.tools/
 /build/_work/
 
@@ -62,6 +63,7 @@ docx
 .agents/
 .claude/
 .codex/
+.trae/
 AGENTS.md
 CLAUDE.md
 CODEX.md

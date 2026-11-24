@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>应声运营 · 迁移验证台</title>
+    <style>
+      :root {
+        --bg: #f6f4ef;
+        --panel: #ffffff;
+        --line: #e6e1d8;
+        --text: #221f1a;
+        --muted: #7a7468;
+        --brand: #07c160;
+        --brand-dark: #059a4c;
+        --warn: #b45309;
+        --shadow: 0 10px 30px rgba(34, 31, 26, 0.06);
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      header {
+        padding: 26px 32px 18px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0.4px;
+      }
+      header p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 12px;
+        color: var(--muted);
+        max-width: 520px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .chip b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      main {
+        padding: 0 32px 40px;
+        display: grid;
+        grid-template-columns: minmax(380px, 1fr) minmax(460px, 1.25fr);
+        gap: 18px;
+        align-items: start;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 20px 22px;
+      }
+      .card h2 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        letter-spacing: 0.3px;
+      }
+      .card .hint {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      label {
+        display: block;
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 9px 11px;
+        font-size: 13.5px;
+        font-family: inherit;
+        background: #fffdf9;
+        color: var(--text);
+        outline: none;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.12);
+      }
+      textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+      button {
+        border: 1px solid transparent;
+        border-radius: 9px;
+        padding: 9px 15px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        background: #efece5;
+        color: var(--text);
+      }
+      button:hover {
+        filter: brightness(0.97);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      button.primary {
+        background: var(--brand);
+        color: #fff;
+        font-weight: 600;
+      }
+      button.primary:hover {
+        background: var(--brand-dark);
+      }
+      button.ghost {
+        background: #fff;
+        border-color: var(--line);
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .row > * {
+        flex: 0 0 auto;
+      }
+      .grow {
+        flex: 1 1 180px;
+      }
+      .field {
+        margin-bottom: 12px;
+      }
+      .accounts {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .account {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: #fffdf9;
+      }
+      .account .name {
+        font-weight: 600;
+      }
+      .account .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .badge {
+        font-size: 11.5px;
+        border-radius: 999px;
+        padding: 2px 9px;
+        background: #f0ede7;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .badge.ok {
+        background: rgba(7, 193, 96, 0.12);
+        color: var(--brand-dark);
+      }
+      .badge.warn {
+        background: rgba(180, 83, 9, 0.12);
+        color: var(--warn);
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 13px;
+        padding: 14px 0;
+      }
+      .qr-box {
+        display: none;
+        margin-top: 14px;
+        border-top: 1px dashed var(--line);
+        padding-top: 14px;
+      }
+      .qr-box.show {
+        display: block;
+      }
+      .qr-box img {
+        display: block;
+        width: 220px;
+        height: 220px;
+        object-fit: contain;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        margin-bottom: 10px;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        min-height: 20px;
+      }
+      .status.error {
+        color: #b91c1c;
+      }
+      .status.ok {
+        color: var(--brand-dark);
+      }
+      pre.result {
+        margin: 12px 0 0;
+        background: #1f1d19;
+        color: #e9e4da;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 12px;
+        max-height: 240px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 12.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      td a {
+        color: #0b6bcb;
+        text-decoration: none;
+      }
+      @media (max-width: 1100px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>应声运营 · 迁移验证台</h1>
+        <p>Node/Electron 主进程直连现有 SQLite，验证「扫码登录 → 存草稿 → 回读」链路</p>
+      </div>
+      <div class="chips">
+        <div class="chip">数据目录 <b id="data-dir">…</b></div>
+        <div class="chip">密钥 <b id="key-state">…</b></div>
+      </div>
+    </header>
+
+    <main>
+      <div class="col">
+        <section class="card">
+          <h2>公众号账号</h2>
+          <p class="hint">扫码使用 Electron 内置 Chromium，登录态与 Python 版共用同一份加密存储。</p>
+          <div class="row">
+            <button class="primary" id="btn-qr">扫码登录公众号</button>
+            <button class="ghost" id="btn-refresh">刷新列表</button>
+          </div>
+          <div class="qr-box" id="qr-box">
+            <img id="qr-img" alt="公众号登录二维码" />
+            <div class="status" id="qr-status">正在打开公众平台…</div>
+            <div class="row" style="margin-top: 10px">
+              <button class="primary" id="btn-save" disabled>保存账号</button>
+              <button class="ghost" id="btn-window" style="display: none">打开验证窗口</button>
+              <button class="ghost" id="btn-cancel">取消</button>
+            </div>
+          </div>
+          <div class="accounts" id="accounts"></div>
+        </section>
+
+        <section class="card">
+          <h2>环境与密钥</h2>
+          <p class="hint">这些状态只读；密钥权限与位置仍按原版规则检查。</p>
+          <pre class="result" id="health">加载中…</pre>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="card">
+          <h2>保存公众号草稿</h2>
+          <p class="hint">只写草稿箱；公众号没有稳定的群发接口，发表请在后台人工确认。</p>
+          <div class="field">
+            <label>发布账号</label>
+            <select id="pub-account"></select>
+          </div>
+          <div class="field">
+            <label>标题（≤64 字）</label>
+            <input id="pub-title" maxlength="64" placeholder="例如：秋招面试复盘：三个让回答更具体的习惯" />
+          </div>
+          <div class="field">
+            <label>封面图</label>
+            <div class="row">
+              <input id="pub-cover" class="grow" placeholder="绝对路径，或点击右侧选择" />
+              <button class="ghost" id="btn-pick">选择图片</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>正文 HTML（可留空，自动用摘要生成段落）</label>
+            <textarea id="pub-body" placeholder="&lt;p&gt;正文第一段…&lt;/p&gt;"></textarea>
+          </div>
+          <div class="field">
+            <label>摘要 / 纯文本正文</label>
+            <textarea id="pub-desc" style="min-height: 80px" placeholder="用于生成 digest 与纯文本兜底"></textarea>
+          </div>
+          <button class="primary" id="btn-publish">保存到草稿箱</button>
+          <pre class="result" id="publish-result" style="display: none"></pre>
+        </section>
+
+        <section class="card">
+          <h2>已发表回读</h2>
+          <p class="hint">拉取公众号「已发表」列表并写入 published_notes，指标缺失时留空。</p>
+          <div class="row">
+            <select id="sync-account" class="grow"></select>
+            <button class="primary" id="btn-sync">同步已发表</button>
+          </div>
+          <div id="published-table"><div class="empty">尚未同步</div></div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let qrTimer = null;
+      let qrSession = "";
+      let accountsCache = [];
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          ...options,
+        });
+        const payload = await response.json().catch(() => ({ ok: false, error: "响应不是 JSON" }));
+        if (!payload.ok) throw new Error(payload.error || `请求失败（HTTP ${response.status}）`);
+        return payload;
+      }
+
+      function setStatus(el, text, kind = "") {
+        el.textContent = text;
+        el.className = "status" + (kind ? " " + kind : "");
+      }
+
+      async function loadHealth() {
+        try {
+          const { data } = await api("/api/health");
+          $("data-dir").textContent = data.data_dir;
+          $("key-state").textContent = data.key.exists
+            ? data.key.outside_data_dir
+              ? "已配置（数据目录外）"
+              : "已配置（与数据同目录）"
+            : "未生成";
+          $("health").textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          $("health").textContent = String(error.message || error);
+        }
+      }
+
+      function accountLabel(item) {
+        return item.nickname || item.name || `账号 #${item.id}`;
+      }
+
+      async function loadAccounts() {
+        const { data } = await api("/api/accounts?platform=wechat_mp");
+        accountsCache = data;
+        const list = $("accounts");
+        list.innerHTML = "";
+        if (!data.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "还没有公众号账号，先扫码登录一个。";
+          list.appendChild(empty);
+        }
+        const select = $("pub-account");
+        select.innerHTML = "";
+        const syncSelect = $("sync-account");
+        syncSelect.innerHTML = "";
+        for (const item of data) {
+          const row = document.createElement("div");
+          row.className = "account";
+          const healthy = item.status === "healthy";
+          row.innerHTML = `
+            <div style="flex:1 1 auto;min-width:0">
+              <div class="name">${escapeHtml(accountLabel(item))}</div>
+              <div class="meta">ID ${item.id} · ${item.platform_name} · 今日保存 ${item.published_today}</div>
+            </div>
+            <span class="badge ${healthy ? "ok" : "warn"}">${escapeHtml(item.status_text || item.status)}</span>
+          `;
+          const check = document.createElement("button");
+          check.className = "ghost";
+          check.textContent = "检查登录";
+          check.addEventListener("click", () => void checkAccount(item.id, check));
+          row.appendChild(check);
+          list.appendChild(row);
+
+          const option = document.createElement("option");
+          option.value = String(item.id);
+          option.textContent = `${accountLabel(item)}（ID ${item.id}）`;
+          select.appendChild(option);
+          syncSelect.appendChild(option.cloneNode(true));
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      async function checkAccount(id, button) {
+        button.disabled = true;
+        button.textContent = "检查中…";
+        try {
+          const { data } = await api(`/api/accounts/${id}/check`, { method: "POST", body: "{}" });
+          button.textContent = data.ok ? "登录正常" : "已失效";
+          await loadAccounts();
+        } catch (error) {
+          button.textContent = "检查失败";
+          alert(error.message);
+        } finally {
+          setTimeout(() => {
+            button.disabled = false;
+            button.textContent = "检查登录";
+          }, 1500);
+        }
+      }
+
+      async function startQr() {
+        $("qr-box").classList.add("show");
+        $("qr-img").removeAttribute("src");
+        $("btn-save").disabled = true;
+        $("btn-window").style.display = "none";
+        setStatus($("qr-status"), "正在打开公众平台…");
+        try {
+          const { data } = await api("/api/accounts/qr", {
+            method: "POST",
+            body: JSON.stringify({ platform: "wechat_mp" }),
+          });
+          qrSession = data.session_id;
+          if (data.qr) $("qr-img").src = data.qr;
+          pollQr();
+          qrTimer = setInterval(pollQr, 1500);
+        } catch (error) {
+          setStatus($("qr-status"), error.message, "error");
+        }
+      }
+
+      async function pollQr() {
+        if (!qrSession) return;
+        try {
+          const { data } = await api(`/api/accounts/qr/${qrSession}`);
+          if (data.qr) $("qr-img").src = data.qr;
+          const kind = data.status === "confirmed" ? "ok" : data.status === "error" ? "error" : "";
+          setStatus($("qr-status"), `${data.message}（${data.status}）`, kind);
+          $("btn-save").disabled = data.status !== "confirmed";
+          $("btn-window").style.display = data.requires_window ? "" : "none";
+          if (["confirmed", "expired", "error"].includes(data.status)) {
+            clearInterval(qrTimer);
+            qrTimer = null;
+          }
+        } catch (error) {
+          clearInterval(qrTimer);
+          qrTimer = null;
+          setStatus($("qr-status"), error.message, "error");
+        }
+      }
+
+      async function saveQr() {
+        if (!qrSession) return;
+        $("btn-save").disabled = true;
+        try {
+          const { data } = await api(`/api/accounts/qr/${qrSession}/save`, {
+            method: "POST",
+            body: JSON.stringify({}),
+          });
+          setStatus($("qr-status"), `已保存：${accountLabel(data)}`, "ok");
+          qrSession = "";
+          $("qr-box").classList.remove("show");
+          await loadAccounts();
+        } catch (error) {
+          setStatus($("qr-status"), error.message, "error");
+          $("btn-save").disabled = false;
+        }
+      }
+
+      async function publish() {
+        const button = $("btn-publish");
+        const accountId = $("pub-account").value;
+        if (!accountId) return alert("请先扫码登录一个公众号账号");
+        const cover = $("pub-cover").value.trim();
+        if (!cover) return alert("请选择封面图");
+        button.disabled = true;
+        button.textContent = "正在保存…";
+        $("publish-result").style.display = "block";
+        $("publish-result").textContent = "请求中…";
+        try {
+          const { data } = await api(`/api/accounts/${accountId}/publish`, {
+            method: "POST",
+            body: JSON.stringify({
+              title: $("pub-title").value.trim(),
+              desc: $("pub-desc").value,
+              body_html: $("pub-body").value,
+              images: [cover],
+              content_type: "long_article",
+            }),
+          });
+          $("publish-result").textContent = JSON.stringify(data, null, 2);
+          if (data.ok) await loadAccounts();
+        } catch (error) {
+          $("publish-result").textContent = String(error.message || error);
+        } finally {
+          button.disabled = false;
+          button.textContent = "保存到草稿箱";
+        }
+      }
+
+      async function syncPublished() {
+        const accountId = $("sync-account").value;
+        if (!accountId) return alert("请先扫码登录一个公众号账号");
+        const button = $("btn-sync");
+        button.disabled = true;
+        button.textContent = "同步中…";
+        try {
+          const { data } = await api("/api/published/sync", {
+            method: "POST",
+            body: JSON.stringify({ account_id: Number(accountId), limit: 20 }),
+          });
+          renderPublished(data.items || []);
+          await loadAccounts();
+        } catch (error) {
+          $("published-table").innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        } finally {
+          button.disabled = false;
+          button.textContent = "同步已发表";
+        }
+      }
+
+      function renderPublished(items) {
+        if (!items.length) {
+          $("published-table").innerHTML = '<div class="empty">平台暂未返回已发表内容</div>';
+          return;
+        }
+        const rows = items
+          .map((item) => {
+            const time = item.published_at
+              ? new Date(item.published_at * 1000).toLocaleString("zh-CN")
+              : "—";
+            const views = item.views === null || item.views === undefined ? "—" : item.views;
+            const likes = item.likes === null || item.likes === undefined ? "—" : item.likes;
+            const link = item.url
+              ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">原文</a>`
+              : "—";
+            return `<tr>
+              <td>${escapeHtml(item.title || "（无标题）")}</td>
+              <td>${time}</td>
+              <td>${views}</td>
+              <td>${likes}</td>
+              <td>${link}</td>
+            </tr>`;
+          })
+          .join("");
+        $("published-table").innerHTML = `<table>
+          <thead><tr><th>标题</th><th>发布时间</th><th>阅读</th><th>点赞</th><th>链接</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
+      $("btn-qr").addEventListener("click", () => void startQr());
+      $("btn-refresh").addEventListener("click", () => void loadAccounts().catch((e) => alert(e.message)));
+      $("btn-save").addEventListener("click", () => void saveQr());
+      $("btn-cancel").addEventListener("click", () => {
+        if (qrTimer) clearInterval(qrTimer);
+        qrTimer = null;
+        qrSession = "";
+        $("qr-box").classList.remove("show");
+      });
+      $("btn-window").addEventListener("click", async () => {
+        try {
+          await api(`/api/accounts/qr/${qrSession}/window`, { method: "POST", body: "{}" });
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+      $("btn-pick").addEventListener("click", async () => {
+        if (!window.echoq) return alert("当前环境不支持文件选择，请直接填写绝对路径");
+        const file = await window.echoq.pickImage();
+        if (file) $("pub-cover").value = file;
+      });
+      $("btn-publish").addEventListener("click", () => void publish());
+      $("btn-sync").addEventListener("click", () => void syncPublished());
+
+      void loadHealth();
+      void loadAccounts().catch((error) => {
+        $("accounts").innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+      });
+    </script>
+  </body>
+</html>

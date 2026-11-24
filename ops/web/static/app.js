@@ -264,6 +264,44 @@ function platformBadge(key) {
   )}">${esc(info.short || info.name)}</span>`;
 }
 
+const PLAT_TAGS = {
+  xiaohongshu: { cls: "xhs", text: "红" },
+  douyin: { cls: "dy", text: "抖" },
+  wechat_mp: { cls: "wx", text: "公" },
+};
+
+function platTag(key) {
+  const tag = PLAT_TAGS[key];
+  if (!tag) {
+    return `<span class="plat" title="${esc(platformName(key))}">${esc(
+      String(platformName(key) || "?").slice(0, 1)
+    )}</span>`;
+  }
+  return `<span class="plat ${tag.cls}" title="${esc(platformName(key))}">${tag.text}</span>`;
+}
+
+function platWrap(platforms) {
+  const keys = Array.from(new Set((platforms || []).filter(Boolean)));
+  if (!keys.length) return "";
+  return `<span class="plat-wrap">${keys.map((key) => platTag(key)).join("")}</span>`;
+}
+
+function dayStamp(ts) {
+  const date = new Date((Number(ts) || 0) * 1000);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diff = Math.round((start - target) / 86400000);
+  if (diff === 0) return "今天";
+  if (diff === 1) return "昨天";
+  return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function clockStamp(ts) {
+  const date = new Date((Number(ts) || 0) * 1000);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 function platformOptions(selected, { includeAll = false } = {}) {
   const current = selected || "xiaohongshu";
   const rows = [];
@@ -2586,7 +2624,8 @@ function renderAccountChips() {
       return `<button type="button" class="account-chip${on ? " on" : ""}${
         expired ? " expired" : ""
       }" data-account="${account.id}" aria-pressed="${on}">
-        <span class="avatar xs">${esc((account.nickname || account.name || "账").slice(0, 1))}</span>
+        ${accountAvatarImage(account, "avatar xs", 24, 8) ||
+        `<span class="avatar xs">${esc((account.nickname || account.name || "账").slice(0, 1))}</span>`}
         <span class="account-chip-main">
           <b>${esc(account.nickname || account.name)}</b>
           <em>今日 ${account.published_today}/${accountLimit(account)}${expired ? " · 失效" : ""}</em>
@@ -4516,71 +4555,101 @@ function renderJobs() {
     renderQueueReasons();
     return;
   }
-  list.innerHTML = state.jobs
-    .map((job) => {
-      const [statusText, statusKind] = JOB_STATUS[job.status] || [job.status, ""];
-      const actions = [];
-      if (job.status === "failed" || job.status === "cancelled") {
-        actions.push(
-          `<button class="btn small ghost" data-action="retry-job" data-id="${job.id}">重试</button>`
-        );
-      }
-      if (job.status === "pending" || job.status === "retry") {
-        actions.push(
-          `<button class="btn small ghost" data-action="cancel-job" data-id="${job.id}">取消</button>`
-        );
-      }
-      if (job.status === "pending_confirm") {
-        actions.push(
-          `<button class="btn small primary" data-action="confirm-job" data-id="${job.id}" data-published="1">已发布</button>`,
-          `<button class="btn small ghost" data-action="confirm-job" data-id="${job.id}" data-published="0">未发布</button>`
-        );
-      }
-      const waitText =
-        job.blocked_reason && (job.status === "pending" || job.status === "retry")
-          ? `<p class="job-blocked">${esc(job.blocked_reason)}</p>`
-          : "";
-      const submitText =
-        job.submitted_at && job.status === "running"
-          ? `<p class="job-blocked">已提交到平台，等待回执（${esc(
-              fmtTime(job.submitted_at)
-            )}）</p>`
-          : "";
-      const confirmText =
-        job.status === "pending_confirm"
-          ? `<p class="job-blocked">平台回执缺失，不会自动重试；请到平台核对后在 ${esc(
-              fmtTime(job.confirm_deadline)
-            )} 前确认。</p>`
-          : "";
-      return `<article class="job-card">
-        <div class="job-top">
-          ${platformBadge(job.platform)}
-          ${badge(statusText, statusKind)}
-          <span class="job-time">${esc(fmtTime(job.created_at))}</span>
+  const statusMeta = {
+    pending: ["排队中", "brand"],
+    running: ["发布中", "brand"],
+    retry: ["重试中", "warn"],
+    pending_confirm: ["待确认", "warn"],
+    failed: ["失败 · 暂停", "bad"],
+    cancelled: ["已取消", ""],
+    success: ["已发布", "ok"],
+  };
+  const groups = [
+    { key: "pending", title: "即将发布", statuses: ["pending", "running", "pending_confirm"] },
+    { key: "failed", title: "需要处理", statuses: ["failed", "cancelled"] },
+    { key: "retry", title: "重试中", statuses: ["retry"] },
+    { key: "done", title: "最近完成", statuses: ["success"] },
+  ];
+  const rowOf = (job) => {
+    const [statusText, statusKind] = statusMeta[job.status] || JOB_STATUS[job.status] || [job.status, ""];
+    const stamp = job.next_run_at || job.created_at;
+    const actions = [];
+    if (job.status === "failed" || job.status === "cancelled") {
+      actions.push(
+        `<button class="btn sm" data-action="retry-job" data-id="${job.id}">立即重试</button>`
+      );
+    }
+    if (job.status === "pending" || job.status === "retry") {
+      actions.push(
+        `<button class="icon-btn" title="移出队列" aria-label="移出队列" data-action="cancel-job" data-id="${job.id}"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>`
+      );
+    }
+    if (job.status === "pending_confirm") {
+      actions.push(
+        `<button class="btn sm primary" data-action="confirm-job" data-id="${job.id}" data-published="1">已发布</button>`,
+        `<button class="btn sm" data-action="confirm-job" data-id="${job.id}" data-published="0">未发布</button>`
+      );
+    }
+    const notes = [];
+    if (job.blocked_reason && (job.status === "pending" || job.status === "retry")) {
+      notes.push(job.blocked_reason);
+    }
+    if (job.status === "running" && job.submitted_at) {
+      notes.push(`已提交到平台，等待回执（${fmtTime(job.submitted_at)}）`);
+    }
+    if (job.status === "pending_confirm") {
+      notes.push(`平台回执缺失，请在 ${fmtTime(job.confirm_deadline)} 前确认。`);
+    }
+    if (job.last_error && job.status !== "success" && job.status !== "pending_confirm") {
+      notes.push(friendlyError(job.last_error));
+    }
+    const note = notes.length
+      ? `<div class="q-note${job.status === "failed" ? " bad" : ""}">${esc(notes[0])}</div>`
+      : "";
+    return `<article class="q-row${job.status === "failed" ? " failed" : ""}" data-job-status="${esc(
+      job.status
+    )}">
+      <div class="q-time">${clockStamp(stamp)}<span>${dayStamp(stamp)}</span></div>
+      <span class="q-thumb ${(PLAT_TAGS[job.platform] || {}).cls || ""}"></span>
+      <div class="q-info">
+        <b title="${esc(job.draft_title)}">${esc(job.draft_title || "未命名内容")}</b>
+        <div class="q-meta">
+          ${platWrap([job.platform])}
+          <span class="q-accts">${esc(job.account_name || "自动选账号")} · 第 ${
+      job.attempts || 0
+    }/${job.max_attempts || 0} 次</span>
         </div>
-        <div class="job-title" title="${esc(job.draft_title)}">${esc(job.draft_title)}</div>
-        <div class="job-meta">
-          <span>${esc(job.account_name || "自动选账号")}</span>
-          <span class="job-sep">·</span>
-          <span>第 ${job.attempts}/${job.max_attempts} 次</span>
-          ${
-            job.status === "success"
-              ? ""
-              : `<span class="job-sep">·</span><span>下次 ${esc(fmtTime(job.next_run_at))}</span>`
-          }
-        </div>
-        ${waitText}
-        ${submitText}
-        ${confirmText}
-        ${
-          job.last_error && job.status !== "success" && job.status !== "pending_confirm"
-            ? `<p class="job-error">${esc(friendlyError(job.last_error))}</p>`
-            : ""
-        }
-        ${actions.length ? `<div class="job-actions">${actions.join("")}</div>` : ""}
-      </article>`;
+        ${note}
+      </div>
+      <span class="pill ${statusKind}">${esc(statusText)}</span>
+      <div class="q-actions">${actions.join("")}</div>
+    </article>`;
+  };
+  const blocks = groups
+    .map((group) => {
+      const rows = state.jobs.filter((job) => group.statuses.includes(job.status));
+      if (!rows.length) return "";
+      return `<div class="queue-group" data-group="${group.key}">
+        <div class="group-label" style="margin:12px 16px 2px">${group.title} <span class="n">${rows.length}</span></div>
+        ${rows.map(rowOf).join("")}
+      </div>`;
     })
     .join("");
+  list.innerHTML = blocks || emptyState("队列是空的", "在草稿卡片上点「发布」，任务会按账号限额自动执行。");
+  const alert = $("#queue-alert");
+  if (alert) {
+    const expired = (state.accounts || []).filter((account) => account.status === "expired").length;
+    const failed = Number(((state.overview || {}).jobs || {}).failed || 0);
+    alert.innerHTML =
+      failed || expired
+        ? `<div class="alert-banner">
+            <svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"></path><path d="M12 10v4"></path><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"></circle></svg>
+            <span><b>${failed || expired} 个任务需要处理</b>：账号登录失效或发布失败，处理后会自动继续。</span>
+            <span class="spacer"></span>
+            <button class="btn sm" type="button" data-view="accounts">去处理</button>
+          </div>`
+        : "";
+  }
   const pager = $("#job-pager");
   if (pager) pager.innerHTML = pagerHtml("jobs", state.jobPage, PAGE_SIZE.jobs, state.jobTotal, { compact: true });
   renderQueueReasons();
@@ -5037,33 +5106,41 @@ async function refreshRecords() {
     }
     state.loading.records = false;
     const rate = state.recordTotal ? Math.round((successTotal / state.recordTotal) * 1000) / 10 : 0;
-    $("#record-summary").innerHTML = [
-      ["发布记录", state.recordTotal, "条"],
-      ["成功率", rate, "%"],
-      ["成功", successTotal, "条"],
-      ["失败", failedTotal, "条"],
-    ]
-      .map(
-        ([label, value, unit]) =>
-          `<div class="mini-stat"><div class="label">${label}</div><div class="value">${value}<small>${unit}</small></div></div>`
-      )
-      .join("");
+    $("#record-summary").innerHTML = `
+      <span>发布记录 <b>${state.recordTotal}</b></span>
+      <span>成功率 <b>${rate}%</b></span>
+      <span>成功 <b>${successTotal}</b></span>
+      <span style="color:var(--bad)">失败 <b style="color:var(--bad)">${failedTotal}</b></span>
+      <span class="spacer"></span>
+      <button class="link-btn" type="button" id="record-failed-only">查看失败明细</button>`;
     const body = $("#record-table tbody");
+    const rows = [];
+    let lastDay = "";
+    state.records.forEach((record) => {
+      const day = dayStamp(record.created_at);
+      if (day !== lastDay) {
+        lastDay = day;
+        rows.push(`<tr class="group-row"><td colspan="6">${day}</td></tr>`);
+      }
+      const remote = record.remote_note_id || "";
+      const remoteShort = remote.length > 12 ? `${remote.slice(0, 6)}…${remote.slice(-3)}` : remote;
+      rows.push(`<tr data-platform="${esc(platformName(record.platform))}" data-result="${
+        record.success ? "ok" : "failed"
+      }">
+        <td class="tabular muted">${clockStamp(record.created_at)}</td>
+        <td><div class="rec-cont"><span class="thumb ${(PLAT_TAGS[record.platform] || {}).cls || ""}"></span><div class="txt">
+          <div class="t" title="${esc(record.draft_title)}">${esc(record.draft_title || "未命名内容")}</div>
+          <div class="s">${platWrap([record.platform])}<span>${esc(platformName(record.platform))}</span></div>
+        </div></div></td>
+        <td>${esc(record.account_name || "—")}</td>
+        <td>${record.success ? '<span class="pill ok">成功</span>' : '<span class="pill bad">失败</span>'}</td>
+        <td class="muted tabular" title="${esc(remote)}">${esc(remoteShort || "—")}</td>
+        <td class="muted">${esc(record.message || "—")}</td>
+      </tr>`);
+    });
     body.innerHTML = state.records.length
-      ? state.records
-          .map(
-            (record) => `<tr>
-              <td>${esc(fmtTime(record.created_at))}</td>
-              <td>${platformBadge(record.platform)}</td>
-              <td class="title-cell">${esc(record.draft_title)}</td>
-              <td>${esc(record.account_name || "—")}</td>
-              <td>${record.success ? badge("成功", "ok") : badge("失败", "bad")}</td>
-              <td>${esc(record.remote_note_id || "—")}</td>
-              <td class="title-cell"><div class="s">${esc(record.message || "")}</div></td>
-            </tr>`
-          )
-          .join("")
-      : `<tr><td colspan="7">${emptyState("还没有发布记录", "第一次发布成功后，这里会留下远端笔记 ID。")}</td></tr>`;
+      ? rows.join("")
+      : `<tr><td colspan="6">${emptyState("还没有发布记录", "第一次发布成功后，这里会留下远端笔记 ID。")}</td></tr>`;
     const pager = $("#record-pager");
     if (pager) {
       pager.innerHTML = state.records.length
@@ -5946,35 +6023,57 @@ function scheduleSubLabel(item) {
   return bits.join(" · ");
 }
 
+const PLAN_ICONS = {
+  mine: '<circle cx="11" cy="11" r="6.2"></circle><path d="M15.6 15.6L20 20"></path>',
+  publish: '<path d="M21 4L10 14"></path><path d="M21 4l-7 17-4-7-7-4z"></path>',
+  chain: '<rect x="4" y="5.5" width="16" height="15" rx="2"></rect><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"></path>',
+};
+
 function renderScheduleCard(item) {
   const open = state.scheduleOpen.has(item.id);
   const stateText = item.running
     ? "执行中"
     : item.enabled
-    ? "开着"
+    ? "启用"
     : item.paused_reason
-    ? "已暂停"
+    ? "账号异常"
     : "已关闭";
-  const stateClass = item.running
-    ? "busy"
-    : item.enabled
-    ? "on"
-    : item.paused_reason
-    ? "paused"
-    : "off";
-  return `<article class="schedule-card${open ? " open" : ""}" data-id="${item.id}">
-    <button type="button" class="schedule-row" data-action="toggle-schedule-detail" data-id="${item.id}">
-      <div class="what">
-        <span class="name">${platformBadge(item.platform)} ${esc(whatLabel(item))}</span>
-        <span class="sub">${esc(scheduleSubLabel(item))}</span>
+  const stateKind = item.running || item.enabled ? "ok" : item.paused_reason ? "bad" : "";
+  const icoKind = item.running || item.enabled ? "brand" : item.paused_reason ? "warn" : "";
+  const meta = [item.trigger_label, scheduleSubLabel(item), platformName(item.platform)]
+    .filter(Boolean)
+    .map((text) => `<span>${esc(text)}</span>`)
+    .join("<i></i>");
+  const nextLabel = item.running
+    ? "正在执行"
+    : !item.enabled && item.paused_reason
+    ? "恢复后执行"
+    : item.next_run_at
+    ? "下次执行"
+    : "—";
+  return `<article class="schedule-plan${open ? " open" : ""}" data-id="${item.id}" data-enabled="${
+    item.enabled || item.running ? "1" : "0"
+  }">
+    <div class="plan-card">
+      <span class="plan-ico ${icoKind}"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${
+        PLAN_ICONS[item.kind] || PLAN_ICONS.chain
+      }</svg></span>
+      <div class="plan-main" data-action="toggle-schedule-detail" data-id="${item.id}">
+        <b>${esc(item.name || whatLabel(item))}</b>
+        <div class="plan-meta">${meta}</div>
       </div>
-      <div class="when">${esc(item.trigger_label)}${
-        item.enabled ? `<span>下次 ${esc(humanNext(item.next_run_at))}</span>` : ""
-      }</div>
-      <span class="state ${stateClass}">${stateText}</span>
-      <span class="chev">${open ? "收起" : "展开"}</span>
-    </button>
-    ${open ? renderScheduleDetail(item) : ""}
+      <div class="plan-next"><div class="n">${esc(humanNext(item.next_run_at))}</div><div class="l">${nextLabel}</div></div>
+      <div class="plan-right">
+        <span class="pill ${stateKind}">${stateText}</span>
+        <button type="button" class="switch${item.enabled ? " on" : ""}" data-action="switch-schedule" data-id="${
+    item.id
+  }" role="switch" aria-checked="${item.enabled}"><i></i></button>
+        <button type="button" class="link-btn" data-action="toggle-schedule-detail" data-id="${item.id}">${
+    open ? "收起" : "详情"
+  }</button>
+      </div>
+    </div>
+    ${open ? `<div class="schedule-expand">${renderScheduleDetail(item)}</div>` : ""}
   </article>`;
 }
 
@@ -5992,7 +6091,14 @@ function renderSchedules() {
     if (pager) pager.innerHTML = "";
     return;
   }
-  list.innerHTML = state.schedules.map(renderScheduleCard).join("");
+  const active = state.schedules.filter((item) => item.enabled || item.running);
+  const paused = state.schedules.filter((item) => !item.enabled && !item.running);
+  const block = (title, items) =>
+    items.length
+      ? `<div class="schedule-group"><div class="group-label">${title} <span class="n">${items.length}</span></div>
+          <div class="card" style="margin-bottom:18px">${items.map(renderScheduleCard).join("")}</div></div>`
+      : "";
+  list.innerHTML = block("启用中", active) + block("已暂停", paused);
   if (pager) {
     pager.innerHTML = pagerHtml(
       "schedules",
@@ -6655,6 +6761,13 @@ function statusBadge(status) {
   return badge("未知", "");
 }
 
+/* 账号头像：平台巡检拿到头像地址就显示图片，否则回退到平台色块/昵称首字。 */
+function accountAvatarImage(account, cls, size, radius) {
+  const url = String((account && account.avatar) || "");
+  if (!/^https?:\/\//i.test(url)) return "";
+  return `<img class="${cls}" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;border-radius:${radius}px;object-fit:cover;display:block" />`;
+}
+
 function renderAccounts() {
   const grid = $("#account-grid");
   if (!grid) return;
@@ -6680,31 +6793,27 @@ function renderAccounts() {
     .map((account) => {
       const name = account.nickname || account.name;
       const cooldown = Number(account.cooldown_until || 0) > Math.floor(Date.now() / 1000);
-      const sub = [
-        account.red_id ? `${platformName(account.platform)}号 ${account.red_id}` : "",
-        account.group_name ? `分组 ${account.group_name}` : "",
-        account.exit_ip ? `出口 ${account.exit_ip}` : account.proxy ? "已设代理" : "直连",
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      const initial = String(name || "账").trim().slice(0, 1);
-      const healthKind =
-        account.health_state === "healthy"
-          ? "ok"
-          : account.health_state === "risk"
-          ? "warn"
-          : account.health_state === "expired"
-          ? "bad"
-          : "";
-      const metrics = [
-        ["今日发布", `<b>${account.published_today}</b><small> / ${accountLimit(account)}</small>`],
-        ["最小间隔", `<b>${esc(accountInterval(account))}</b>`],
-        ["最近巡检", `<b>${esc(relTime(account.health_checked_at))}</b>`],
-      ];
-      return `<article class="account-card${account.enabled ? "" : " off"}${
+      const plat = PLAT_TAGS[account.platform] || { cls: "", text: String(name || "账").slice(0, 1) };
+      const sub = `${platformName(account.platform)} · ${
+        account.group_name || account.red_id || account.tags?.[0] || "未分组"
+      }`;
+      const statusMeta =
+        account.status === "healthy"
+          ? ["正常", "ok"]
+          : account.status === "expired"
+          ? ["需重登", "bad"]
+          : account.status === "unknown"
+          ? ["待检查", "warn"]
+          : ["未知", ""];
+      const footText = !account.enabled
+        ? "已停用，不参与发布"
+        : cooldown
+        ? `风控冷却至 ${fmtTime(account.cooldown_until)}`
+        : account.last_error || account.group_name || "登录有效，可参与发布";
+      return `<article class="card account-card${account.enabled ? "" : " off"}${
         state.accountPicked.has(account.id) ? " picked" : ""
       }">
-        <div class="account-head">
+        <div class="acc-top">
           ${
             state.accountBatch
               ? `<input type="checkbox" class="account-pick" data-account-pick="${account.id}" ${
@@ -6712,17 +6821,17 @@ function renderAccounts() {
                 } aria-label="选择账号" />`
               : ""
           }
-          <span class="account-avatar" aria-hidden="true">${esc(initial)}</span>
-          <button class="account-id" type="button" data-action="open-account" data-id="${account.id}" title="查看账号诊断">
-            <span class="account-name">${esc(name)}</span>
-            <span class="account-sub">${esc(sub || account.name)}</span>
-          </button>
-          <div class="account-tags">
-            ${platformBadge(account.platform)}
-            ${statusBadge(account.status)}
-            ${badge(account.health_state_text || "未判断", healthKind)}
-            ${account.enabled ? "" : badge("已停用")}
+          ${
+            accountAvatarImage(account, "plat", 34, 9) ||
+            `<span class="plat ${plat.cls}" style="width:34px;height:34px;border-radius:9px;font-size:14px">${esc(
+              plat.text
+            )}</span>`
+          }
+          <div class="info">
+            <b>${esc(name)}</b>
+            <span>${esc(sub)}</span>
           </div>
+          <span class="pill ${statusMeta[1]}">${statusMeta[0]}</span>
           <details class="card-more">
             <summary title="更多操作" aria-label="更多操作">⋯</summary>
             <div class="card-more-menu">
@@ -6736,38 +6845,24 @@ function renderAccounts() {
             </div>
           </details>
         </div>
-        ${
-          account.tags && account.tags.length
-            ? `<div class="account-tag-row">${account.tags
-                .map((tag) => `<span class="mini-tag">${esc(tag)}</span>`)
-                .join("")}</div>`
-            : ""
-        }
-        <div class="account-metrics">
-          ${metrics
-            .map(([label, value]) => `<div><span>${label}</span><p>${value}</p></div>`)
-            .join("")}
+        <div class="acc-stats">
+          <div class="acc-stat"><div class="n">${account.published_today || 0} / ${accountLimit(
+        account
+      )}</div><div class="l">今日发布</div></div>
+          <div class="acc-stat"><div class="n">${esc(accountInterval(account))}</div><div class="l">最小间隔</div></div>
+          <div class="acc-stat"><div class="n">${esc(relTime(account.health_checked_at))}</div><div class="l">最近巡检</div></div>
         </div>
-        ${
-          cooldown
-            ? `<p class="account-warning">风控冷却至 ${esc(fmtTime(account.cooldown_until))}；冷却期间不会自动发布。</p>`
-            : account.last_error
-            ? `<p class="account-warning">${esc(account.last_error)}</p>`
-            : ""
-        }
-        <div class="account-foot">
-          <button class="btn small ghost" data-action="open-account" data-id="${account.id}">详情</button>
-          <button class="btn small ghost" data-action="check-account" data-id="${account.id}">检查登录</button>
-          <button class="btn small ghost" data-action="edit-account" data-id="${account.id}">发布设置</button>
+        <div class="acc-foot">
+          <span${cooldown || account.last_error ? ' style="color:var(--warn)"' : ""}>${esc(footText)}</span>
+          <span class="spacer"></span>
+          <button class="link-btn" type="button" data-action="check-account" data-id="${account.id}">${
+        account.status === "expired" ? "重新登录" : "检查"
+      }</button>
+          <button class="link-btn" type="button" data-action="open-account" data-id="${account.id}">详情</button>
         </div>
       </article>`;
     })
-    .join("") +
-    `<button type="button" class="account-add" data-action="add-account">
-      <span class="account-add-plus" aria-hidden="true">+</span>
-      <span>添加账号</span>
-      <small>扫码或粘贴登录信息</small>
-    </button>`;
+    .join("");
 }
 
 function renderAccountGroupFilter() {
@@ -7287,7 +7382,11 @@ async function startQrLogin() {
       body: { platform, proxy: ($("#acc-qr-proxy") || {}).value || "" },
     });
     state.qr.session = data.session_id;
-    area.innerHTML = `<img src="${data.qr}" alt="扫码登录" />`;
+    if (data.qr) {
+      area.innerHTML = `<img src="${data.qr}" alt="扫码登录" />`;
+    } else {
+      area.textContent = "未能自动截取二维码，请点击「打开验证窗口」完成扫码登录";
+    }
     status.textContent = QR_STATUS_HINT[platform] || `请用${info ? info.short || info.name : ""} App 扫码`;
     state.qr.timer = setInterval(async () => {
       if (!state.qr.session) return;
@@ -7304,7 +7403,11 @@ async function startQrLogin() {
           closeModal();
           await refreshAccounts();
           await refreshOverview();
-        } else if (result.status === "expired" || result.status === "error") {
+        } else if (
+          result.status === "expired" ||
+          result.status === "error" ||
+          result.status === "failed"
+        ) {
           stopQrPolling();
           const windowPanel = $("#qr-window");
           if (windowPanel) windowPanel.hidden = true;
@@ -8967,13 +9070,17 @@ function bindEvents() {
       setButtonLoading(button, false);
     }
   });
-  $("#btn-toggle-queue").addEventListener("click", (event) => {
-    const section = $("#queue-section");
-    const open = !section.classList.contains("open");
-    section.classList.toggle("open", open);
-    event.currentTarget.setAttribute("aria-expanded", String(open));
-    event.currentTarget.textContent = open ? "收起" : "展开";
-  });
+  const queueToggle = $("#btn-toggle-queue");
+  if (queueToggle) {
+    queueToggle.addEventListener("click", (event) => {
+      const section = $("#queue-section");
+      if (!section) return;
+      const open = !section.classList.contains("open");
+      section.classList.toggle("open", open);
+      event.currentTarget.setAttribute("aria-expanded", String(open));
+      event.currentTarget.textContent = open ? "收起" : "展开";
+    });
+  }
   bindPager("#library-pager", (page) => {
     state.draftPage = page;
     refreshLibrary().catch((error) => toast(error.message, true));
