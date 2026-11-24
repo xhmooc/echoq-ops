@@ -753,6 +753,18 @@ section[id] { scroll-margin-top: 84px; }
   .final { padding: 76px 0 84px; }
   .legal-hero { padding-top: 112px; }
 }
+/* 0.1.0 更新日志 */
+.changelog-title { font-family: var(--serif); font-size: 28px; line-height: 1.15; letter-spacing: -.03em; margin: 18px 0 4px; color: #fff; }
+.changelog-sub { margin: 0 0 22px; font-size: 13px; color: rgba(255, 255, 255, .62); }
+.changelog-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.changelog-list li { position: relative; padding-left: 16px; }
+.changelog-list li::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--pink-2); }
+.changelog-list b { display: block; font-size: 14px; color: #fff; margin-bottom: 2px; }
+.changelog-list span { display: block; font-size: 13px; line-height: 1.6; color: rgba(255, 255, 255, .72); }
+.dl-actions { display: flex; gap: 10px; margin-top: auto; }
+.access-side .dl-actions .btn { margin-top: 0; width: auto; flex: 1; }
+.access-side .fineprint { font-size: 12px; }
+@media (max-width: 520px) { .dl-actions { flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
