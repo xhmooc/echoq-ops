@@ -8,46 +8,64 @@
 
 <p align="center">Research, write, illustrate, preview, publish, and review — in one pipeline.</p>
 
-> A Windows content operations workbench that runs locally. Go from a topic to a published note on one page, then come back to review what went out. It runs as a single process and listens on `127.0.0.1:8710` by default; accounts and the copy/image relay are provided by EchoQ. Intended for content creation and operations efficiency; make sure your use complies with each platform's rules and local laws.
+> A Windows content operations workbench that runs locally (Next edition, currently 0.2.5). From topic to publish and back to review, everything happens in one window. It runs as a single process and listens on `127.0.0.1:8711` by default; accounts and the copy/image relay are provided by EchoQ. Intended for content creation and operations efficiency; make sure your use complies with each platform's rules and local laws.
 
-![EchoQ Ops interface](docs/ui/ops.jpg)
+![Operations dashboard](docs/ui/dashboard.png)
 
 ## Features
 
-### Content generation: a brief in, a draft out
+### Operations dashboard: what needs doing today, at a glance
 
-Describe the topic, angle, and tone, and get a complete note. Multiple tones, topic suggestions, and live compliance checks are built in. If the model is unavailable, it falls back to an offline template instead of leaving a blank page.
+The home page summarizes today's published, pending, and queued notes plus unused topics, with account status and usage on the right. Expired logins, failed jobs, and a backlog all surface here — one click takes you to the page that fixes them.
 
-### Phone preview: the note page, as the platform renders it
+### Topic pool: from keywords to writable topics
 
-The right panel mirrors the platform's note detail view. Title, body, hashtags, and images update as you edit, so you do not have to publish and delete to check the layout.
+Mine topics by keyword, competitor account, channel, or on-site hot list, score and sort them, then turn the pick into a draft. Bulk import, pick from the question bank, or add one manually.
 
-### Illustrations: built-in templates and AI images
+![Topic pool](docs/ui/topics.png)
 
-Built-in templates are rendered locally with HTML / CSS and captured headlessly — good for fixed layouts. When you need something new, generate an image with AI. Both paths check size, overlap, and bounds before writing the file, so text is not clipped.
+### Studio: write once, publish to several platforms
+
+Pick the platform (Xiaohongshu / Douyin / WeChat Official Accounts), publishing account, and visibility on one page. The body switches between plain text and Markdown; WeChat drafts can apply multiple layout themes. The phone preview on the right updates as you type, mirroring title, body, hashtags, and images in the platform's own style. A built-in local model drafts from a brief, with selectable tone — and it keeps your writing habits.
+
+![Studio](docs/ui/studio.png)
+
+### Illustrations 2.0: style × layout × palette
+
+6 practical feed styles × 4 layouts × 3 palettes — 24 combinations, all rendered locally with HTML / CSS. Style cards carry sample previews so you can see the result before choosing; one request can produce 3 candidates with distinct styles and layouts, laid out side by side in the media preview area, and "Use" commits one as the official image. An appearance ledger records the styles used per account, down-weights recent ones, and forces a different style after two in a row, so consecutive posts do not look identical.
+
+### Hand-drawn illustrations: 5 media, reproducible by seed
+
+Flat vector, pencil wash, marker comic, sumi-e ink, and paper-cut festival — randomness comes only from a seed: the same draft and composition render pixel-identically every time, and "Another composition" re-renders with a new seed. Supports 3:4 portrait (cover / content / closing pages) and 2.35:1 wide format for WeChat.
+
+![Hand-drawn illustration](docs/ui/sketch.png)
+
+### Motion images: GIF and MP4
+
+Animated images render frame by frame (6s × 25fps), then ffmpeg composites `loop.gif` and `motion.mp4`. If frame rendering or compositing fails, it falls back to the static first frame and records the reason on the job, so publishing never hangs.
 
 ### Publishing: queue, account rotation, and limits
 
-Publishing jobs run idempotently from a queue, with account rotation, daily limits and minimum intervals, failure classification with backoff, scheduled publishing, and one draft to multiple accounts.
+Jobs run idempotently from a queue, with account rotation, daily limits and minimum intervals, failure classification with backoff, scheduled publishing, and one draft to multiple accounts. Expired logins are flagged and swapped automatically instead of stalling the queue.
 
-### Review: published notes and scheduled sync
+### Review: published records and scheduled sync
 
-Published notes are cached locally and can be synced on a schedule. Scheduled task run history is visible on the page.
+Published notes are cached locally and can sync engagement data on a schedule. Failure details, retry counts, and reasons stay on each job, and scheduled task run history is visible on the page.
 
-### Accounts: cookie or QR sign-in
+### Accounts: QR or cookie sign-in
 
-Import cookies or sign in by QR code; credentials are encrypted with Fernet and stored locally. Account health is checked periodically, with automatic cooldown when risk controls trigger.
+Sign in by QR code or import cookies; credentials are encrypted locally. Account health is checked periodically, with automatic cooldown on risk control and a gradual ramp-up after recovery.
 
 ## Typical use
 
 | Scenario | How |
 | --- | --- |
-| Daily topic selection and drafting | Content generation — a brief in, a draft out |
+| Daily topic selection and drafting | Mine topics in the topic pool, draft from a brief in the studio |
 | Check the layout before publishing | Phone preview on the right, updated while you edit |
-| Need illustrations | Built-in templates for fixed layouts, AI images for new ones |
+| Need illustrations | Pick built-in templates by sample preview; re-roll hand-drawn compositions |
 | Multiple accounts | Publish queue + account rotation + daily limits |
 | Scheduled publishing | Scheduled tasks enqueue jobs at the chosen time |
-| Review performance | Published cache and scheduled sync |
+| Review performance | Published records cached locally, engagement synced on a schedule |
 
 ## Quick start
 
@@ -66,9 +84,18 @@ npm run dev
 ## More
 
 - **Compliance checks**: sensitive-word and platform-rule warnings while generating
+- **Layout checks**: bounds, overlap, tiny type, and poor whitespace are checked before rendering — blocking what must be blocked, warning on the rest
 - **Visible failures**: failed jobs retry with backoff, and the reason stays on the job
-- **Scheduled tasks**: jobs enter the queue on time, with run history
+- **Recoverable interruptions**: unfinished jobs are re-queued after a crash or exit instead of being dropped
 - **Local storage**: credentials, drafts, images, and publish records stay on your machine
+
+## Roadmap
+
+**Hand-drawn illustrations**: more media (marker / highlighter, risograph, ink wash, woodcut, crayon and colored pencil), each with its own "mark-making" parameters rather than a palette swap; expand the subject library from 10 to 24, add two-subject relationships and three composition templates; handwritten titles that match each medium's stroke; later, bind style packs to accounts, keep a reusable illustration history, and illustrate sections by semantics.
+
+**WeChat layout**: figure captions, quote cards, callout cards, tables of contents, step bars, and pull-quote blocks; inline code highlighting; a style-convergence check before pasting into WeChat; layout presets bound to accounts.
+
+**Content and platform model**: a multi-platform version view of one draft (Xiaohongshu copy / WeChat long-form, convertible both ways), and a central platform capability matrix for title length, image count, and rich-text support.
 
 ## Troubleshooting
 
@@ -93,13 +120,13 @@ EchoQ-Ops/
 ├─ desktop/             current desktop app (Electron + Node, port 8711)
 ├─ ops/                 legacy aiohttp backend and web frontend
 ├─ vendor/              upstream Spider_XHS code: apis / xhs_utils / spider / upstream
-├─ docs/                architecture, API, data model, runbook, reviews
+├─ docs/                architecture, API, data model, runbook, changelog, and roadmap
 ├─ electron/            legacy desktop shell
 ├─ website/             marketing site source
 └─ run.cmd              legacy entry point
 ```
 
-More docs: [Architecture](docs/ARCHITECTURE.md) · [Runbook](docs/RUNBOOK.md) · [API](docs/API.md) · [Data model](docs/DATA_MODEL.md)
+More docs: [Architecture](docs/ARCHITECTURE.md) · [Runbook](docs/RUNBOOK.md) · [API](docs/API.md) · [Data model](docs/DATA_MODEL.md) · [Changelog](docs/CHANGELOG.md) · [Roadmap](docs/ROADMAP.md)
 
 ## License
 
