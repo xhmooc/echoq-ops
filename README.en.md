@@ -51,25 +51,17 @@ Import cookies or sign in by QR code; credentials are encrypted with Fernet and 
 
 ## Quick start
 
-1. **Set up**: Windows 10 / 11, Python 3.10+, then install dependencies
+1. **Download**: get the installer or portable build from [Releases](https://github.com/xhmooc/echoq-ops/releases). Windows 10 / 11 (x64)
+2. **Sign in**: launch the app and sign in with your EchoQ account; drafts, images, and publish records stay on your machine
+3. **Start**: pick a platform and topic, then go write → illustrate → preview → publish
 
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\python.exe -m pip install -U pip
-   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-   .\.venv\Scripts\python.exe -m playwright install chromium
-   ```
+Run from source (Node.js 20+):
 
-2. **Point at the cloud service**: copy `.env.example` to `.env` and adjust `OPS_CLOUD_BASE_URL` if needed. From source it defaults to `http://127.0.0.1:8787`; the packaged build points at `https://ops.echoq.cn`
-
-3. **Start**:
-
-   ```powershell
-   .\.venv\Scripts\python.exe -X utf8 -m ops selfcheck
-   run.cmd ops
-   ```
-
-   Open <http://127.0.0.1:8710> and sign in.
+```powershell
+cd desktop
+npm install
+npm run dev
+```
 
 ## More
 
@@ -77,35 +69,34 @@ Import cookies or sign in by QR code; credentials are encrypted with Fernet and 
 - **Visible failures**: failed jobs retry with backoff, and the reason stays on the job
 - **Scheduled tasks**: jobs enter the queue on time, with run history
 - **Local storage**: credentials, drafts, images, and publish records stay on your machine
-- **Self-check**: `python -X utf8 -m ops selfcheck` verifies dependencies, folders, and config
 
 ## Troubleshooting
 
-Run the self-check first to confirm dependencies and configuration. Check the console output if startup fails, and the job details if publishing fails. If that does not help, [open an issue](https://github.com/xhmooc/echoq-ops/issues/new) with the version, Windows version, and the exact error text — mask any account details in screenshots.
+First check the installer version and system architecture (Windows x64). If that does not help, [open an issue](https://github.com/xhmooc/echoq-ops/issues/new) with the version, Windows version, and the exact error text — mask any account details in screenshots.
 
 You can also join the feedback group: EchoQ Ops Group 1, **1136843749**.
 
 ## Build
 
-The shipped form is an Electron desktop app:
-
 ```powershell
-powershell -ExecutionPolicy Bypass -File build\build-desktop.ps1
+cd desktop
+npm install
+npm run dist
 ```
 
-Output goes to `release\electron\`.
+Output goes to `release\desktop\`.
 
 ## Project layout
 
 ```text
 EchoQ-Ops/
-├─ ops/                 aiohttp backend and web frontend (web/static)
+├─ desktop/             current desktop app (Electron + Node, port 8711)
+├─ ops/                 legacy aiohttp backend and web frontend
 ├─ vendor/              upstream Spider_XHS code: apis / xhs_utils / spider / upstream
 ├─ docs/                architecture, API, data model, runbook, reviews
-├─ build/               packaging scripts and PyInstaller config
-├─ electron/            desktop shell (window + tray + local backend)
+├─ electron/            legacy desktop shell
 ├─ website/             marketing site source
-└─ run.cmd              single entry point
+└─ run.cmd              legacy entry point
 ```
 
 More docs: [Architecture](docs/ARCHITECTURE.md) · [Runbook](docs/RUNBOOK.md) · [API](docs/API.md) · [Data model](docs/DATA_MODEL.md)

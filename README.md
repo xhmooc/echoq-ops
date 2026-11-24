@@ -51,25 +51,17 @@
 
 ## 快速开始
 
-1. **准备环境**：Windows 10 / 11，Python 3.10+，然后安装依赖
+1. **下载安装**：从 [Releases](https://github.com/xhmooc/echoq-ops/releases) 下载安装版或免安装版，支持 Windows 10 / 11（x64）
+2. **登录**：启动后登录 EchoQ 账号，草稿、配图与发布记录保存在本机
+3. **开始使用**：选平台、写选题，按写稿 → 配图 → 预览 → 发布 的顺序走
 
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\python.exe -m pip install -U pip
-   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-   .\.venv\Scripts\python.exe -m playwright install chromium
-   ```
+从源码运行（需要 Node.js 20+）：
 
-2. **配置云端地址**：复制 `.env.example` 为 `.env`，按需修改 `OPS_CLOUD_BASE_URL`。源码运行时默认指向本机 `http://127.0.0.1:8787`，打包版指向 `https://ops.echoq.cn`
-
-3. **启动**：
-
-   ```powershell
-   .\.venv\Scripts\python.exe -X utf8 -m ops selfcheck
-   run.cmd ops
-   ```
-
-   打开 <http://127.0.0.1:8710>，登录后即可使用。
+```powershell
+cd desktop
+npm install
+npm run dev
+```
 
 ## 更多功能
 
@@ -77,35 +69,34 @@
 - **失败可见**：发布失败按类型退避重试，原因保留在任务详情里
 - **定时任务**：按时间自动进队列，运行记录可回看
 - **本机存储**：账号凭据、草稿、配图和发布记录都保存在本机
-- **自检命令**：`python -X utf8 -m ops selfcheck` 检查依赖、目录和配置
 
 ## 遇到问题
 
-先跑一次自检，确认依赖和配置完整；启动失败时看控制台输出，发布失败时看任务详情里的原因。仍然解决不了，带上版本号、Windows 版本和报错原文[提 Issue](https://github.com/xhmooc/echoq-ops/issues/new)，截图里如果有账号信息记得打码。
+先确认安装包版本与系统位数（Windows x64）。仍然解决不了，带上版本号、Windows 版本和报错原文[提 Issue](https://github.com/xhmooc/echoq-ops/issues/new)，截图里如果有账号信息记得打码。
 
 也可以直接进反馈群：应声运营 1 群 **1136843749**。
 
 ## 打包
 
-对外交付形态是 Electron 桌面版：
-
 ```powershell
-powershell -ExecutionPolicy Bypass -File build\build-desktop.ps1
+cd desktop
+npm install
+npm run dist
 ```
 
-产物输出到 `release\electron\`。
+产物输出到 `release\desktop\`。
 
 ## 项目结构
 
 ```text
 EchoQ-Ops/
-├─ ops/                 运营台后端（aiohttp）与前端（web/static）
+├─ desktop/             当前桌面版（Electron + Node，端口 8711）
+├─ ops/                 旧版运营台后端（aiohttp）与前端
 ├─ vendor/              上游 Spider_XHS 代码：apis / xhs_utils / spider / upstream
 ├─ docs/                架构、接口、数据模型、运维、评审
-├─ build/               打包脚本与 PyInstaller 配置
-├─ electron/            桌面壳（窗口 + 托盘 + 启动本地后端）
+├─ electron/            旧版桌面壳
 ├─ website/             官网静态页
-└─ run.cmd              统一入口
+└─ run.cmd              旧版统一入口
 ```
 
 更多文档：[架构与数据流](docs/ARCHITECTURE.md) · [本地运行与配置](docs/RUNBOOK.md) · [接口文档](docs/API.md) · [数据模型](docs/DATA_MODEL.md)
