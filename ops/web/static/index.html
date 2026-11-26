@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>应声运营 · 多平台内容工作台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff2442'/%3E%3Crect x='9' y='8' width='4' height='16' rx='2' fill='%23fff'/%3E%3Crect x='17' y='8' width='4' height='16' rx='2' fill='%23fff' opacity='.55'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/prototype.css" />
+  <link rel="stylesheet" href="/static/template-editor.css" />
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4"></path><path d="M12 2a7 7 0 0 0-4 12.7c.6.4 1 1.1 1 1.8V18h6v-1.5c0-.7.4-1.4 1-1.8A7 7 0 0 0 12 2Z"></path></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"></path></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 16 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 9v.09c0 .68.41 1.3 1.05 1.56H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M9.1 9a3 3 0 1 1 4.4 2.7c-.8.4-1.5 1-1.5 1.8v.5"></path><path d="M12 17h.01"></path></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"></path></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"></path></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4Z"></path></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"></path></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"></path><path d="M22 2 15 22l-4-9-9-4Z"></path></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3Z"></path></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h4.5A4.5 4.5 0 0 0 21 7.5C21 5 17 3 12 3Z"></path><circle cx="7.5" cy="10.5" r="1"></circle><circle cx="12" cy="7.5" r="1"></circle><circle cx="16.5" cy="10.5" r="1"></circle></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v7c0 1.7 4 3 9 3s9-1.3 9-3V5"></path><path d="M3 12v7c0 1.7 4 3 9 3s9-1.3 9-3v-7"></path></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2a8.4 8.4 0 1 1 16.1-4.3Z"></path></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"></circle><path d="m10.5 12.5 9-9M17 6l3 3M14 9l2.5 2.5"></path></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0 0-7.8Z"></path></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9Z"></path></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="17.5" cy="16" r="2.5"></circle></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1"></path></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="m3 8 4.5 4L12 4l4.5 8L21 8l-2 11H5L3 8Z"></path></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></symbol>
+  </svg>
+  <header class="titlebar">
+    <div class="tb-brand">
+      <span class="tb-logo">应</span>
+      <span class="tb-name">应声运营</span>
+    </div>
+    <nav class="tb-menu" id="tb-menu">
+      <div class="tb-m"><button type="button">文件</button>
+        <div class="tb-drop">
+          <button type="button" data-act="new">新建内容<span class="k">Ctrl N</span></button>
+          <button type="button" data-act="import">从本地文件导入…</button>
+          <button type="button" data-act="export">导出当前视图<span class="k">Ctrl E</span></button>
+          <div class="tb-sep"></div>
+          <button type="button" data-act="quit">退出应声运营<span class="k">Alt F4</span></button>
+        </div>
+      </div>
+      <div class="tb-m"><button type="button">编辑</button>
+        <div class="tb-drop">
+          <button type="button" data-act="undo">撤销<span class="k">Ctrl Z</span></button>
+          <button type="button" data-act="redo">重做<span class="k">Ctrl ⇧ Z</span></button>
+          <div class="tb-sep"></div>
+          <button type="button" data-act="selectall">全选当前列表<span class="k">Ctrl A</span></button>
+          <button type="button" data-act="find">查找内容…<span class="k">Ctrl F</span></button>
+        </div>
+      </div>
+      <div class="tb-m"><button type="button">视图</button>
+        <div class="tb-drop">
+          <button type="button" data-act="go-home">运营管理</button>
+          <button type="button" data-act="go-studio">创作台</button>
+          <button type="button" data-act="go-library">内容库</button>
+          <button type="button" data-act="go-queue">发布队列</button>
+          <div class="tb-sep"></div>
+          <button type="button" data-act="palette">命令面板<span class="k">Ctrl K</span></button>
+          <button type="button" data-act="theme">切换深浅主题</button>
+        </div>
+      </div>
+      <div class="tb-m"><button type="button">帮助</button>
+        <div class="tb-drop">
+          <button type="button" data-act="shortcuts">快捷键速查</button>
+          <button type="button" data-act="help">帮助中心</button>
+          <button type="button" data-act="update">检查更新<span class="k">v2.4.0</span></button>
+          <div class="tb-sep"></div>
+          <button type="button" data-act="about">关于应声运营</button>
+        </div>
+      </div>
+    </nav>
+    <div class="tb-drag"></div>
+    <div class="tb-winctl">
+      <button class="wc" id="app-min" data-win="min" type="button" title="最小化"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 5h8"></path></svg></button>
+      <button class="wc" id="app-max" data-win="max" type="button" title="最大化"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"></rect></svg></button>
+      <button class="wc close" id="app-close" data-win="close" type="button" title="关闭"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1l8 8M9 1L1 9"></path></svg></button>
+    </div>
+  </header>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <span class="logo-mark">应</span>
+        <span class="brand-text"><b>应声运营</b><span>EchoQ Ops</span></span>
+        <button class="side-collapse" id="btn-side-collapse" type="button" title="折叠侧栏" aria-label="折叠侧栏">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M14 7l-5 5 5 5"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="side-scroll">
+        <div class="nav-group">
+          <div class="nav-label">工作台</div>
+          <button class="tab nav-item active" data-view="home" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"></path></svg>
+            <span class="nav-text">运营管理</span>
+          </button>
+          <button class="tab nav-item" data-view="studio" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.5l4 4L8 20H4v-4z"></path><path d="M13 7l4 4"></path></svg>
+            <span class="nav-text">创作台</span>
+          </button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">内容</div>
+          <button class="tab nav-item" data-view="library" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="7" height="15" rx="1.5"></rect><rect x="13.5" y="4.5" width="7" height="15" rx="1.5"></rect></svg>
+            <span class="nav-text">内容库</span><span class="nav-count nav-badge" id="nav-library-count"></span>
+          </button>
+          <button class="tab nav-item" data-view="topics" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M5 12h9M5 18h12"></path><circle cx="19" cy="12" r="1.2" fill="currentColor" stroke="none"></circle></svg>
+            <span class="nav-text">选题池</span><span class="nav-count nav-badge" id="nav-topics-count"></span>
+          </button>
+          <button class="tab nav-item" data-view="templates" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"></rect><path d="M3.5 9h17M9 9v11.5"></path></svg>
+            <span class="nav-text">模板</span>
+          </button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">发布</div>
+          <button class="tab nav-item" data-view="schedule" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="15" rx="2"></rect><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"></path></svg>
+            <span class="nav-text">发布计划</span>
+          </button>
+          <button class="tab nav-item" data-view="queue" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"></path><circle cx="18" cy="17" r="2.2"></circle></svg>
+            <span class="nav-text">发布队列</span><span class="nav-count nav-badge" id="nav-queue-count"></span>
+          </button>
+          <button class="tab nav-item" data-view="records" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h9l4 4v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"></path><path d="M14 4v5h5M8 13h8M8 17h5"></path></svg>
+            <span class="nav-text">发布记录</span>
+          </button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">数据</div>
+          <button class="tab nav-item" data-view="dashboard" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9m5 11V4m5 16v-7m5 7V7"></path></svg>
+            <span class="nav-text">数据概览</span>
+          </button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">运营</div>
+          <button class="tab nav-item" data-view="accounts" type="button">
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.5"></circle><path d="M4.5 20c.8-3.6 3.8-5.6 7.5-5.6s6.7 2 7.5 5.6"></path></svg>
+            <span class="nav-text">账号管理</span><span class="nav-count nav-badge" id="nav-accounts-count"></span>
+          </button>
+        </div>
+      </div>
+      <div class="side-foot">
+        <div class="side-quota" hidden>
+          <div class="quota-top"><span>今日发布</span><b id="side-today">0 篇</b></div>
+          <div class="quota-bar"><i id="side-today-bar"></i></div>
+        </div>
+        <button class="user-row" id="btn-account" type="button" title="账号与设置">
+          <span class="avatar" id="side-avatar">应</span>
+          <span class="user-meta">
+            <b id="side-user-name">应声运营</b>
+            <span id="account-label">未登录</span>
+          </span>
+          <span class="account-dot" id="account-dot"></span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="crumb">
+          <span id="crumb-group">工作台</span>
+          <i>/</i>
+          <b id="crumb-page">运营管理</b>
+        </div>
+        <div class="topbar-spacer"></div>
+        <button class="search-box" id="btn-command" type="button" title="打开命令面板">
+          <svg class="ico" width="15" height="15"><use href="#i-search"></use></svg>
+          <span class="sb-ph">搜索内容、选题、账号</span>
+          <span class="kbd">Ctrl K</span>
+        </button>
+        <button class="icon-btn" id="btn-help" type="button" title="帮助" aria-label="帮助">
+          <svg class="ico" width="17" height="17"><use href="#i-help"></use></svg>
+        </button>
+        <div class="notify-wrap">
+          <button class="icon-btn" id="btn-notify" type="button" title="通知" aria-label="通知"
+            aria-haspopup="true" aria-expanded="false">
+            <svg class="ico" width="17" height="17"><use href="#i-bell"></use></svg>
+            <span class="dot" id="notify-badge" hidden></span>
+          </button>
+          <div class="notify-pop" id="notify-pop" hidden>
+            <div class="notify-head">
+              <b>通知</b>
+              <button class="link-btn" type="button" id="btn-notify-read">全部已读</button>
+            </div>
+            <div class="notify-list" id="notify-list"></div>
+            <div class="notify-foot">
+              <span class="hint" id="notify-hint">需要处理的事会先出现在这里</span>
+              <button class="link-btn" type="button" id="btn-notify-channels">推送渠道</button>
+            </div>
+          </div>
+        </div>
+        <button class="icon-btn" id="btn-dark" type="button" title="切换深浅主题" aria-label="切换深浅主题">
+          <svg class="ico" id="theme-icon" width="17" height="17"><use href="#i-moon"></use></svg>
+        </button>
+        <div class="theme-pop" id="theme-pop" hidden>
+          <button class="icon-btn theme-btn" id="btn-theme" title="主色" aria-label="主色"
+            aria-haspopup="true" aria-expanded="false">
+            <span class="theme-dot" id="theme-dot" style="--dot:#ff2442"></span>
+          </button>
+          <div class="theme-menu" id="theme-menu" hidden>
+            <div class="theme-menu-head">主色</div>
+            <div class="theme-menu-list" id="theme-menu-list"></div>
+          </div>
+        </div>
+        <button class="icon-btn" id="btn-settings" title="设置" aria-label="设置" hidden>
+          <svg class="ico" width="17" height="17"><use href="#i-settings"></use></svg>
+        </button>
+        <span class="topbar-divider"></span>
+        <button class="btn" id="btn-topbar-new" type="button">
+          <svg class="ico" width="14" height="14"><use href="#i-plus"></use></svg>
+          新建内容
+        </button>
+        <span class="today-chip" id="today-chip" hidden>今日 0 篇</span>
+      </header>
+
+      <section class="update-banner" id="update-banner" hidden>
+    <span class="update-dot" aria-hidden="true"></span>
+    <div class="update-text">
+      <b id="update-title">发现新版本</b>
+      <span class="hint" id="update-notes"></span>
+    </div>
+    <div class="update-actions">
+      <button class="btn ghost small" id="btn-update-later" type="button">稍后</button>
+      <a class="btn primary small" id="btn-update-download" href="#" target="_blank" rel="noreferrer">去下载</a>
+    </div>
+  </section>
+
+  <main class="workspace">
+    <section class="setup-banner" id="setup-banner" hidden>
+      <span class="step-no">1</span>
+      <div class="setup-text"><b id="setup-title">先接入一个账号</b><span id="setup-desc">账号是发布的前提，扫码或粘贴登录信息都可以。</span></div>
+      <button class="btn primary small" id="btn-setup-go">去接入</button>
+    </section>
+    <section class="attention-banner" id="attention-banner" hidden>
+      <span class="attention-dot" aria-hidden="true"></span>
+      <div class="setup-text"><b>有需要处理的事</b><span id="attention-text"></span></div>
+      <button class="btn small ghost" id="btn-attention-go">去处理</button>
+    </section>
+    <!-- ============================== 运营管理 ============================== -->
+    <section class="view active" id="view-home">
+      <div class="view-head home-hero">
+        <div>
+          <div class="home-eyebrow" id="home-eyebrow">运营管理</div>
+          <h1 id="home-greeting">今天好</h1>
+          <p class="hint" id="home-summary">今天的发布、待办与账号状态一眼看完，点任意模块进入对应页面。</p>
+        </div>
+        <div class="actions home-actions">
+          <button class="btn ghost" id="btn-home-custom" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>
+            自定义首页
+          </button>
+          <button class="btn ghost" id="btn-home-topics" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path></svg>
+            挖选题
+          </button>
+          <button class="btn ghost" id="btn-home-queue" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>
+            看队列
+          </button>
+          <button class="btn primary" id="btn-home-new" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.5l4 4L8 20H4v-4z"></path><path d="M13 7l4 4"></path></svg>
+            写内容
+          </button>
+          <button class="btn ghost" id="btn-home-refresh" type="button" hidden>刷新</button>
+        </div>
+      </div>
+      <div class="home-grid" id="home-grid"></div>
+    </section>
+
+    <!-- ============================== 数据概览 ============================== -->
+    <section class="view" id="view-dashboard">
+      <div class="view-head">
+        <div>
+          <h1>数据概览</h1>
+          <p class="hint">基于本机发布记录与账号数据统计，不含平台端播放/互动指标。</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="btn-dashboard-refresh" type="button">
+            <svg class="ico" width="14" height="14"><use href="#i-refresh"></use></svg>同步数据
+          </button>
+          <button class="btn primary" type="button" data-view="studio">
+            <svg class="ico" width="14" height="14"><use href="#i-pen"></use></svg>去创作
+          </button>
+        </div>
+      </div>
+      <div id="dashboard-body"></div>
+    </section>
+
+    <!-- ============================== 创作 ============================== -->
+    <section class="view" id="view-studio">
+      <div class="studio">
+        <aside class="pane editor-pane">
+          <div class="pane-head">
+            <span class="pane-title">内容编辑</span>
+            <div class="pane-head-actions">
+              <span class="studio-save" id="studio-save-state">草稿已自动保存</span>
+              <span class="engine-badge" id="engine-badge">检测中</span>
+              <button class="btn ghost small narrow-only" type="button" id="btn-toggle-preview" aria-pressed="false">预览</button>
+              <button class="btn ghost small" type="button" id="btn-clear-note" title="清空当前草稿内容">清空</button>
+            </div>
+          </div>
+
+          <div class="editor-scroll">
+            <div class="editor-wrap">
+              <div class="editor-tags">
+                <span class="pill brand" id="editor-platform-tag">小红书 · 图文</span>
+                <span class="pill">本地草稿</span>
+                <span class="pill idle" id="editor-check-tag">待检查</span>
+              </div>
+
+              <section class="check-card" id="compliance-card" aria-live="polite"></section>
+
+              <div class="editor-toolbar" id="editor-toolbar" role="toolbar" aria-label="正文格式">
+                <button type="button" data-md="bold" title="加粗"><b>B</b></button>
+                <button type="button" data-md="italic" title="斜体"><i>I</i></button>
+                <button type="button" data-md="h2" title="小标题">H2</button>
+                <button type="button" data-md="quote" title="引用">“”</button>
+                <span class="sep"></span>
+                <button type="button" data-md="bullet" title="无序列表">≡</button>
+                <button type="button" data-md="ordered" title="有序列表">1.</button>
+                <span class="sep"></span>
+                <button type="button" id="btn-wx-theme-2" title="按公众号主题重排正文">公众号排版</button>
+              </div>
+
+              <textarea id="f-desc" class="editor-body" rows="9" placeholder="写清楚场景、动作和结果。结尾别喊口号。"></textarea>
+              <p class="field-hint" id="body-mode-hint" hidden>Markdown 会实时渲染到右侧手机预览，发布时按所选排版主题输出。</p>
+              <div class="inline-error" id="desc-error" hidden></div>
+
+              <div class="editor-foot">
+                <span><b id="count-desc">0 / 1000</b> 字</span>
+                <span class="editor-foot-right">
+                  <span class="format-toggle" id="body-format" role="group" aria-label="正文格式">
+                    <button type="button" data-body-format="text" class="active">文本</button>
+                    <button type="button" data-body-format="markdown">MD</button>
+                  </span>
+                  <button type="button" class="link-btn" id="btn-wx-theme">排版</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="pane preview-pane">
+          <div class="preview-head">
+            <span class="pane-title">实时预览</span>
+            <div class="preview-tabs" id="preview-tabs" role="group" aria-label="预览平台">
+              <button type="button" data-pv-platform="xiaohongshu" class="active" title="小红书">小红书</button>
+              <button type="button" data-pv-platform="douyin" title="抖音">抖音</button>
+              <button type="button" data-pv-platform="wechat_mp" title="公众号">公众号</button>
+            </div>
+            <button class="btn ghost small" type="button" id="btn-preview-all" title="同时查看三端">三端</button>
+            <span class="preview-tag" id="pv-platform" hidden>小红书</span>
+            <button class="btn ghost small narrow-only" type="button" id="btn-close-preview">收起预览</button>
+          </div>
+          <div class="wx-edit-bar" id="wx-edit-bar" hidden>
+            <span class="wx-edit-tip" id="wx-edit-tip">点标题或正文直接修改</span>
+            <div class="wx-edit-tools">
+              <button type="button" data-wx-cmd="theme" title="一键排版">Aa</button>
+              <button type="button" data-wx-cmd="bold" title="加粗">B</button>
+              <button type="button" data-wx-cmd="h2" title="小标题">H2</button>
+              <button type="button" data-wx-cmd="quote" title="引用">❝</button>
+              <button type="button" data-wx-cmd="ul" title="列表">≡</button>
+              <button type="button" data-wx-cmd="hr" title="分割线">—</button>
+              <button type="button" data-wx-cmd="image" title="插入图片">图</button>
+              <button type="button" data-wx-cmd="art" title="生成手绘插画并插入">画</button>
+              <button type="button" data-wx-cmd="video" title="视频占位">视频</button>
+              <button type="button" data-wx-cmd="md" title="粘贴 Markdown 或 HTML">MD</button>
+            </div>
+          </div>
+          <div class="md-pop" id="md-pop" hidden>
+            <select id="md-pop-format" aria-label="粘贴格式">
+              <option value="markdown">Markdown</option>
+              <option value="html">HTML</option>
+            </select>
+            <textarea id="md-pop-text" rows="6" placeholder="粘贴 Markdown 或 HTML，转换后插入到正文末尾"></textarea>
+            <div class="md-pop-actions">
+              <button type="button" class="btn ghost small" id="md-pop-cancel">取消</button>
+              <button type="button" class="btn primary small" id="md-pop-insert">转换并插入</button>
+            </div>
+          </div>
+          <div class="wx-theme-pop" id="wx-theme-pop" hidden>
+            <p class="wx-theme-pop-title">一键排版</p>
+            <div class="wx-theme-list" id="theme-list"></div>
+            <p class="wx-theme-pop-tip">只影响预览和发布时的排版，不改动正文内容。</p>
+          </div>
+          <input type="file" id="wx-inline-upload" accept="image/*" multiple hidden />
+          <div class="phone-wrap preview-device" data-preview="xiaohongshu">
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="statusbar">
+                  <span class="status-time">17:27</span>
+                  <span class="status-icons">
+                    <svg viewBox="0 0 18 12" width="17" height="11" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                    <svg viewBox="0 0 16 12" width="16" height="12" aria-hidden="true"><path d="M8 10.6l1.8-2.1a3 3 0 0 0-3.6 0z"/><path d="M3.4 6.1a7 7 0 0 1 9.2 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M1 3.5a10.4 10.4 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span class="battery"><b>100</b></span>
+                  </span>
+                </div>
+                <div class="xhs-nav">
+                  <span class="xhs-back" aria-hidden="true">‹</span>
+                  <div class="xhs-user">
+                    <div class="avatar" id="pv-avatar">应</div>
+                    <div class="xhs-user-name" id="pv-author">应声面试</div>
+                  </div>
+                  <span class="follow-btn">关注</span>
+                  <span class="xhs-icon xhs-share" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M13 5l7 7-7 7"></path>
+                      <path d="M20 12H9a5 5 0 0 0-5 5v2"></path>
+                    </svg>
+                  </span>
+                </div>
+                <div class="xhs-scroll" id="pv-scroll">
+                  <div class="gallery-wrap"><div class="gallery"></div></div>
+                  <div class="note-title" id="pv-title" contenteditable="true" spellcheck="false"></div>
+                  <div class="note-body" id="pv-body" contenteditable="true" spellcheck="false"></div>
+                  <div class="note-tags" id="pv-tags"></div>
+                  <div class="note-meta">
+                    <div class="note-collection">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7.5A1.5 1.5 0 0 1 5.5 6H10l2 2.5h6.5A1.5 1.5 0 0 1 20 10v7.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/></svg>
+                      <span class="note-collection-label">合集</span>
+                      <span id="pv-collection"></span>
+                    </div>
+                    <div class="note-subline">
+                      <span id="pv-date"></span>
+                      <button class="note-dislike" type="button">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.4"/><path d="M8.5 14.4c.8 1.2 2 1.9 3.5 1.9s2.7-.7 3.5-1.9" stroke-linecap="round"/><circle cx="9" cy="9.6" r=".9" fill="currentColor" stroke="none"/><circle cx="15" cy="9.6" r=".9" fill="currentColor" stroke="none"/></svg>
+                        不喜欢
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="xhs-actionbar">
+                  <div class="comment-box">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4.2-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z"></path></svg>
+                    说点什么...
+                  </div>
+                  <div class="act">
+                    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <path d="M12 20s-7-4.4-7-9.3A4.2 4.2 0 0 1 9.2 6c1.2 0 2.2.6 2.8 1.5A3.4 3.4 0 0 1 14.8 6 4.2 4.2 0 0 1 19 10.7C19 15.6 12 20 12 20z"></path>
+                    </svg>
+                  </div>
+                  <div class="act">
+                    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <path d="M12 4l2.5 5.2 5.5.8-4 3.9 1 5.6-5-2.7-5 2.7 1-5.6-4-3.9 5.5-.8L12 4z"></path>
+                    </svg>
+                  </div>
+                  <div class="act">
+                    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <path d="M20 11.5a7.5 7.5 0 0 1-10.8 6.7L4 19.5l1.3-4.6A7.5 7.5 0 1 1 20 11.5z"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="phone-wrap preview-device wx-wrap" data-preview="wechat_mp" hidden>
+            <div class="phone wx-phone">
+              <div class="phone-screen wx-screen">
+                <div class="statusbar">
+                  <span class="status-time">17:27</span>
+                  <span class="status-icons">
+                    <svg viewBox="0 0 18 12" width="17" height="11" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                    <span class="battery"><b>100</b></span>
+                  </span>
+                </div>
+                <div class="wx-topbar">
+                  <span class="wx-back" aria-hidden="true">‹</span>
+                  <span class="wx-kebab" aria-hidden="true">···</span>
+                </div>
+                <div class="wx-scroll" id="pv-wx-scroll">
+                  <h1 class="wx-title" id="pv-wx-title" contenteditable="true" spellcheck="false"></h1>
+                  <div class="wx-figures" id="pv-wx-figures"></div>
+                  <div class="wx-body" id="pv-wx-body" contenteditable="true" spellcheck="false"></div>
+                  <div class="wx-author-row">
+                    <div class="wx-author-main">
+                      <span class="wx-avatar" id="pv-wx-avatar">应</span>
+                      <span class="wx-author-name" id="pv-wx-author">应声面试</span>
+                      <span class="wx-follow">+ 关注</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="wx-actionbar" aria-hidden="true">
+                  <span class="wx-write">写留言</span>
+                  <span class="wx-action">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 21V10l5-7 1.6.6a2 2 0 0 1 1.2 2.4L14 9h5.2a2 2 0 0 1 1.9 2.6l-2.4 7.7A2.5 2.5 0 0 1 16.3 21H7z"/><path d="M7 10H4v11h3"/></svg>
+                    赞
+                  </span>
+                  <span class="wx-action">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12v7a2 2 0 0 0 2 2h9l5-5V7l-5 5h-4V5l-2-1-5 8z"/></svg>
+                    分享
+                  </span>
+                  <span class="wx-action">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.4-7-9.3A4.2 4.2 0 0 1 9.2 6c1.2 0 2.2.6 2.8 1.5A3.4 3.4 0 0 1 14.8 6 4.2 4.2 0 0 1 19 10.7C19 15.6 12 20 12 20z"/></svg>
+                    在看
+                  </span>
+                  <span class="wx-action">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 11.5a7.5 7.5 0 0 1-10.8 6.7L4 19.5l1.3-4.6A7.5 7.5 0 1 1 20 11.5z"/></svg>
+                    评论
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="phone-wrap preview-device dy-wrap" data-preview="douyin" hidden>
+            <div class="phone dy-phone">
+              <div class="phone-screen dy-screen">
+                <div class="dy-media" id="pv-dy-media"></div>
+                <div class="dy-shade dy-shade-top"></div>
+                <div class="dy-shade dy-shade-bottom"></div>
+                <div class="statusbar dy-status">
+                  <span class="status-time">17:27</span>
+                  <span class="status-icons">
+                    <svg viewBox="0 0 18 12" width="17" height="11" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                    <span class="battery"><b>100</b></span>
+                  </span>
+                </div>
+                <div class="dy-nav">
+                  <span class="dy-menu" aria-hidden="true"><span></span><span></span><span></span></span>
+                  <div class="dy-tabs">
+                    <span class="dy-tab">关注</span>
+                    <span class="dy-tab">团购</span>
+                    <span class="dy-tab">直播</span>
+                    <span class="dy-tab">同城</span>
+                    <span class="dy-tab">朋友</span>
+                    <span class="dy-tab on">推荐</span>
+                  </div>
+                  <span class="dy-search" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="6.2"/><path d="M15.6 15.6L20 20" stroke-linecap="round"/></svg>
+                  </span>
+                </div>
+                <div class="dy-side">
+                  <div class="dy-avatar"><span id="pv-dy-avatar">应</span><i>+</i></div>
+                  <div class="dy-act">
+                    <svg viewBox="0 0 24 24" width="31" height="31" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 20.5s-7-4.3-7-9.2A4.1 4.1 0 0 1 9.1 7c1.1 0 2.1.6 2.9 1.5A3.4 3.4 0 0 1 14.9 7 4.1 4.1 0 0 1 19 11.3c0 4.9-7 9.2-7 9.2z"/></svg>
+                  </div>
+                  <div class="dy-act">
+                    <svg viewBox="0 0 24 24" width="31" height="31" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 11.5a7.5 7.5 0 0 1-10.8 6.7L4 19.5l1.3-4.6A7.5 7.5 0 1 1 20 11.5z"/></svg>
+                  </div>
+                  <div class="dy-act">
+                    <svg viewBox="0 0 24 24" width="31" height="31" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 4l2.5 5.2 5.5.8-4 3.9 1 5.6-5-2.7-5 2.7 1-5.6-4-3.9 5.5-.8L12 4z"/></svg>
+                  </div>
+                  <div class="dy-act">
+                    <svg viewBox="0 0 24 24" width="31" height="31" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M13 5l7 7-7 7"/><path d="M20 12H9a5 5 0 0 0-5 5v2"/></svg>
+                  </div>
+                  <div class="dy-make">
+                    <span class="dy-make-disc" aria-hidden="true"></span>
+                    <small>拍同款</small>
+                  </div>
+                </div>
+                <div class="dy-bottom">
+                  <div class="dy-author">@<span id="pv-dy-author">应声面试</span><span class="dy-kind" id="pv-dy-kind">图文</span></div>
+                  <div class="dy-caption" id="pv-dy-caption"></div>
+                  <button class="dy-expand" id="pv-dy-expand" type="button" hidden>展开</button>
+                  <div class="dy-tags" id="pv-dy-tags"></div>
+                </div>
+                <div class="dy-tabbar">
+                  <span class="on">首页</span>
+                  <span>商城</span>
+                  <span class="dy-plus" aria-label="发布">+</span>
+                  <span class="dy-msg">消息</span>
+                  <span>我</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="pane publish-pane settings-pane">
+          <div class="pane-head">
+            <span class="pane-title">创作设置</span>
+            <span class="hint" id="platform-note">已接入</span>
+          </div>
+
+          <nav class="studio-steps" role="tablist" aria-label="创作步骤">
+            <button class="studio-step active" type="button" role="tab" aria-selected="true" data-studio-step="copy">
+              <span class="n">1</span><span class="t">文案</span>
+            </button>
+            <button class="studio-step" type="button" role="tab" aria-selected="false" data-studio-step="media">
+              <span class="n">2</span><span class="t">配图</span>
+            </button>
+            <button class="studio-step" type="button" role="tab" aria-selected="false" data-studio-step="publish">
+              <span class="n">3</span><span class="t">发布</span>
+            </button>
+          </nav>
+
+          <div class="publish-scroll">
+          <div class="step-panel" data-step-panel="copy">
+          <div class="set-block ai-block">
+            <div class="set-title"><span>AI 起草</span><span class="counter" id="count-brief">0 / 500</span></div>
+            <div class="ai-card">
+              <div class="ai-card-head">
+                <span class="ai-title">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path>
+                  </svg>
+                  本地模型 · 无需联网
+                </span>
+                <div class="ai-head-right">
+                  <button class="link-btn" type="button" id="btn-ai-more" aria-expanded="false" aria-controls="ai-more">选项</button>
+                </div>
+              </div>
+              <div class="ai-input-row">
+                <textarea id="f-brief" rows="3" maxlength="500" placeholder="例：秋招复盘，讲 3 个真正有用的动作。"></textarea>
+              </div>
+              <div class="ai-tone-row">
+                <span class="ai-tone-label">语气</span>
+                <select id="f-tone" class="ai-tone-select">
+                  <option value="story" selected>经验分享</option>
+                  <option value="informative">干货科普</option>
+                  <option value="emotional">情感共鸣</option>
+                  <option value="warn">避坑指南</option>
+                  <option value="professional">专业测评</option>
+                  <option value="casual">日常随意</option>
+                  <option value="recommend">好物种草</option>
+                  <option value="cute">可爱软萌</option>
+                  <option value="enthusiastic">激情感召</option>
+                </select>
+              </div>
+              <div class="ai-foot">
+                <span class="ai-hint">会保留你的写作习惯</span>
+                <button class="btn primary small" id="btn-generate">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path>
+                  </svg>
+                  生成文案
+                </button>
+              </div>
+              <div class="ai-more" id="ai-more" hidden>
+                <div class="ai-grid">
+                  <label>主题
+                    <input id="f-topic" type="text" placeholder="可留空，自动提炼" />
+                  </label>
+                </div>
+                <div class="ai-actions">
+                  <label class="check"><input type="checkbox" id="f-tags" checked /> 生成话题</label>
+                  <label class="check"><input type="checkbox" id="f-product" /> 带一点产品</label>
+                </div>
+              </div>
+              <div class="inline-error" id="gen-error" hidden></div>
+            </div>
+          </div>
+
+          <div class="set-block title-block">
+            <div class="set-title"><span>标题</span><span class="counter" id="count-title">0 / 20</span></div>
+            <input id="f-title" class="input studio-title-input" type="text" placeholder="一句让人想点进来的标题" />
+            <div class="inline-error" id="title-error" hidden></div>
+          </div>
+
+          <div class="set-block topics-block">
+            <div class="editor-topics">
+              <div class="field-label"><span>话题</span><span class="hint">最多 5 个</span></div>
+              <div class="topic-editor">
+                <input id="f-topics" type="text" placeholder="面试, 秋招（逗号分隔）" />
+                <div class="tag-chips" id="topic-chips"></div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <div class="step-panel" data-step-panel="media" hidden>
+          <section class="media-card">
+            <div class="card-head">
+              <span class="card-title" id="media-title">配图</span>
+              <span class="hint" id="media-count"></span>
+            </div>
+            <p class="hint media-mode-note" id="media-mode-note" hidden></p>
+
+            <div class="media-tabs" id="media-tabs" role="tablist">
+              <button class="media-tab active" type="button" data-tab="free" role="tab" aria-selected="true">
+                免费模板<em>本机生成</em>
+              </button>
+              <button class="media-tab" type="button" data-tab="paid" role="tab" aria-selected="false">
+                付费出图<em>按张计费</em>
+              </button>
+            </div>
+
+            <!-- 公众号长文：同一张原图自动裁出 2.35:1 封面和 1:1 小图封面，点击可放大 -->
+            <div class="wx-cover-preview" id="wx-cover-preview" hidden>
+              <div class="wx-cover-main" role="button" tabindex="0" title="点击放大">
+                <img id="wx-cover-main-img" alt="封面 2.35:1" />
+                <span>封面 2.35:1</span>
+              </div>
+              <div class="wx-cover-square" role="button" tabindex="0" title="点击放大">
+                <img id="wx-cover-square-img" alt="小图封面 1:1" />
+                <span>小图 1:1</span>
+              </div>
+            </div>
+
+            <div class="media-grid" id="media-grid"></div>
+            <button class="upload-zone compact" type="button" id="upload-zone">
+              <input type="file" id="upload-input" accept="image/*" multiple hidden />
+              <span class="upload-plus">＋</span>
+              <b id="upload-title">上传素材</b>
+              <span class="upload-sub" id="upload-sub">点击或拖入图片</span>
+            </button>
+            <button class="btn ghost block" id="btn-composite" type="button">实拍混合图（上传照片 + 模板合成）</button>
+            <div class="v2-options" id="composite-options">
+              <div class="style-picker-row">
+                <label for="f-composite-template">混合模板</label>
+                <select id="f-composite-template">
+                  <option value="clean-frame">简洁边框</option>
+                  <option value="border-sticker">白框贴纸</option>
+                  <option value="date-card">日期章</option>
+                </select>
+              </div>
+              <div class="style-picker-row">
+                <label for="f-composite-filter">滤镜</label>
+                <select id="f-composite-filter">
+                  <option value="none">原图</option>
+                  <option value="film">胶片</option>
+                  <option value="bw">黑白</option>
+                </select>
+              </div>
+              <input type="file" id="composite-input" accept="image/*" hidden />
+            </div>
+
+            <div class="media-panel" id="panel-free">
+              <div class="style-picker">
+                <button class="style-trigger" type="button" id="style-trigger" aria-expanded="false" aria-controls="style-pop">
+                  <span class="style-trigger-label">配图模板</span>
+                  <b id="style-current">加载中…</b>
+                  <span class="style-trigger-caret" aria-hidden="true">▾</span>
+                </button>
+                <div class="style-pop" id="style-pop" hidden>
+                  <div class="style-pop-head">
+                    <b>一键排版</b>
+                  </div>
+                  <div class="style-grid" id="card-style-grid" role="radiogroup" aria-label="免费模板风格"></div>
+                  <p class="hint" id="card-style-hint">只影响配图版式，不改动正文内容。</p>
+                </div>
+              </div>
+              <div class="v2-options" id="v2-options" hidden>
+                <div class="style-picker-row">
+                  <label for="seg-layout">版式</label>
+                  <div class="seg v2-seg" id="seg-layout" role="radiogroup" aria-label="版式"></div>
+                </div>
+                <div class="style-picker-row">
+                  <label for="seg-palette">调色板</label>
+                  <div class="seg v2-seg" id="seg-palette" role="radiogroup" aria-label="调色板"></div>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn primary block" id="btn-cards-free">生成配图</button>
+                <button class="btn ghost block" id="btn-reshuffle" hidden>换一张构图</button>
+                <button class="btn ghost block" id="btn-candidates">一次出 3 版候选</button>
+                <button class="btn ghost block" id="btn-motion">生成 6 秒动图</button>
+                <button class="btn ghost block" id="btn-slideshow">图组转视频</button>
+              </div>
+              <div class="v2-options" id="motion-options">
+                <div class="style-picker-row">
+                  <label for="f-motion-template">动效范式</label>
+                  <select id="f-motion-template">
+                    <option value="fade-seq">错峰入场（默认）</option>
+                    <option value="type-in">逐字浮现</option>
+                    <option value="kenburns">缓推镜头</option>
+                    <option value="sketch-grow">手绘生长</option>
+                    <option value="pop-sticker">贴纸弹跳</option>
+                  </select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-motion-duration">动效时长</label>
+                  <select id="f-motion-duration">
+                    <option value="4">4 秒</option>
+                    <option value="6" selected>6 秒</option>
+                    <option value="8">8 秒</option>
+                  </select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-motion-canvas">动效画幅</label>
+                  <select id="f-motion-canvas">
+                    <option value="portrait" selected>竖版 3:4</option>
+                    <option value="square">方图 1:1</option>
+                    <option value="wide">头图 2.35:1</option>
+                    <option value="landscape">横版 16:9</option>
+                  </select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-motion-bgm">动效配乐</label>
+                  <select id="f-motion-bgm"><option value="none">无配乐</option></select>
+                </div>
+              </div>
+              <div class="v2-options" id="slideshow-options">
+                <div class="style-picker-row">
+                  <label for="f-slideshow-transition">转场</label>
+                  <select id="f-slideshow-transition">
+                    <option value="crossfade">淡入淡出</option>
+                    <option value="slide">滑动</option>
+                  </select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-slideshow-canvas">视频画幅</label>
+                  <select id="f-slideshow-canvas">
+                    <option value="story" selected>抖音竖版 9:16</option>
+                    <option value="portrait">竖版 3:4</option>
+                    <option value="square">方图 1:1</option>
+                    <option value="landscape">横版 16:9</option>
+                  </select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-slideshow-bgm">视频配乐</label>
+                  <select id="f-slideshow-bgm"><option value="none">无配乐</option></select>
+                </div>
+              </div>
+              <p class="hint" id="card-plan-hint"></p>
+              <div class="style-status" id="style-status" hidden>
+                <span id="style-status-text">配图模板没加载出来</span>
+                <button class="btn small ghost" type="button" id="btn-retry-styles">重试</button>
+              </div>
+            </div>
+
+            <div class="media-panel" id="panel-paid" hidden>
+              <div class="style-picker">
+                <div class="style-picker-row">
+                  <label for="f-paid-style">风格</label>
+                  <select id="f-paid-style"></select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-paid-layout">版式</label>
+                  <select id="f-paid-layout"></select>
+                </div>
+                <div class="style-picker-row">
+                  <label for="f-paid-palette">配色</label>
+                  <select id="f-paid-palette"><option value="">跟随风格</option></select>
+                </div>
+                <p class="hint" id="paid-model-line">qwen-image-3.0 · 1k · 约 ¥0.18/张</p>
+              </div>
+              <div class="cost-card" id="paid-cost"></div>
+              <p class="hint" id="paid-note">按次计费，确认后才会调用付费接口；不点不产生费用。</p>
+              <button class="btn primary block" id="btn-cards-paid">付费生成 3 张</button>
+              <div class="inline-error" id="paid-error" hidden></div>
+            </div>
+
+            <div class="inline-error" id="media-error" hidden></div>
+          </section>
+          </div>
+
+          <div class="step-panel" data-step-panel="publish" hidden>
+          <section class="publish-card">
+            <div class="set-block">
+              <div class="set-title"><span>发布平台</span><em>可多选</em></div>
+              <div class="seg platform-seg" id="f-platform"></div>
+              <p class="hint platform-hint" id="platform-hint"></p>
+              <p class="hint platform-hint" id="platform-action-hint" hidden></p>
+              <div class="content-type-row" id="content-type-cell">
+                <span>内容类型</span>
+                <div class="seg seg-mini" id="f-content-type"></div>
+              </div>
+            </div>
+            <div class="set-block">
+              <div class="set-title"><span>发布账号</span><em>可多选</em></div>
+              <div class="account-chips" id="account-chips"></div>
+              <details class="pub-advanced" id="pub-advanced">
+                <summary class="pub-label">定时发布 <em>留空即立即发布</em></summary>
+                <input type="datetime-local" id="f-schedule" aria-label="定时发布时间" />
+              </details>
+            </div>
+            <div class="set-block" id="visibility-cell">
+              <div class="set-title"><span id="visibility-label">可见范围</span></div>
+              <div class="seg" id="f-visibility">
+                <button type="button" class="active" data-value="0">公开</button>
+                <button type="button" data-value="1">仅自己可见</button>
+              </div>
+              <p class="hint">公开内容会出现在账号主页与平台推荐流。</p>
+            </div>
+          </section>
+
+          <div class="pane-foot publish-actions">
+            <div class="action-row">
+              <button class="btn save-local" id="btn-save">存为草稿</button>
+              <div class="action-main">
+                <button class="btn ghost" id="btn-save-platform-draft" hidden>先存草稿</button>
+                <button class="btn" id="btn-publish">加入队列</button>
+                <button class="btn primary" id="btn-publish-now">
+                  <svg class="ico" width="14" height="14"><use href="#i-send"></use></svg>立即发布
+                </button>
+              </div>
+            </div>
+            <p class="hint center" id="studio-meta">未保存</p>
+          </div>
+          </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============================== 内容库 ============================== -->
+    <section class="view" id="view-library">
+      <div class="view-head">
+        <div>
+          <h1>内容库</h1>
+          <p class="hint">草稿、队列和失败重试集中在这里。点任意一张卡片继续编辑。</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="btn-records">
+            <svg class="ico" width="14" height="14"><use href="#i-history"></use></svg>发布记录
+          </button>
+          <button class="btn primary" id="btn-new-note">
+            <svg class="ico" width="14" height="14"><use href="#i-plus"></use></svg>写新内容
+          </button>
+          <button class="btn ghost" id="btn-rewrite-text" hidden>粘贴文案洗稿</button>
+          <button class="btn ghost" id="btn-refresh-library" hidden>刷新</button>
+        </div>
+      </div>
+
+      <div class="library-layout">
+        <div class="library-stats" id="library-stats" hidden></div>
+
+        <div class="library-mode" id="library-mode" hidden>
+          <button class="active" type="button" data-lib-mode="drafts">草稿</button>
+          <button type="button" data-lib-mode="published">已发布作品</button>
+        </div>
+
+        <div id="draft-panel">
+        <div class="card lib-filter-card">
+          <div class="tabs-line" id="draft-filter">
+            <button class="active" data-status="">全部</button>
+            <button data-status="draft">草稿</button>
+            <button data-status="queued">已入队</button>
+            <button data-status="published">已发布</button>
+            <button data-status="failed">失败</button>
+          </div>
+          <div class="toolbar lib-toolbar">
+            <div class="search-inline">
+              <svg class="ico" width="14" height="14"><use href="#i-search"></use></svg>
+              <input class="lib-search" id="draft-search" type="search" placeholder="搜索标题或正文" aria-label="搜索草稿" />
+            </div>
+            <select class="mini-select" id="draft-platform-filter" aria-label="按平台筛选">
+              <option value="">全部平台</option>
+            </select>
+            <span class="spacer"></span>
+            <div class="seg lib-view" id="draft-view" role="group" aria-label="切换视图">
+              <button type="button" class="active" data-lib-view="grid" title="网格视图" aria-label="网格视图">
+                <svg class="ico" width="14" height="14"><use href="#i-grid"></use></svg>
+              </button>
+              <button type="button" data-lib-view="list" title="列表视图" aria-label="列表视图">
+                <svg class="ico" width="14" height="14"><use href="#i-list"></use></svg>
+              </button>
+            </div>
+            <button class="icon-btn lib-density" id="draft-density" type="button" title="切换密度" aria-label="切换密度">
+              <svg class="ico" width="15" height="15"><use href="#i-grid"></use></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="draft-bulk" id="draft-bulk">
+          <label class="check all-check">
+            <input type="checkbox" id="draft-check-all" />
+            <span>全选本页</span>
+          </label>
+          <span class="bulk-count" id="draft-selected-count">已选 0 项</span>
+          <button class="link-btn" type="button" id="btn-select-all-filtered" hidden></button>
+          <span class="spacer"></span>
+          <button class="btn small ghost" id="btn-queue-selected" disabled>批量入队</button>
+          <button class="btn small danger" id="btn-delete-drafts" disabled>删除所选</button>
+        </div>
+        <p class="bulk-scope" id="draft-select-scope" hidden></p>
+
+        <div class="draft-grid" id="draft-grid"></div>
+        <div id="library-pager"></div>
+        </div>
+
+        <div id="published-panel" hidden>
+          <div class="filter-tabs" id="published-filter">
+            <button class="active" type="button" data-health="">全部</button>
+            <button type="button" data-health="attention">需关注</button>
+            <button type="button" data-health="normal">正常</button>
+            <button type="button" data-health="unknown">未判断</button>
+            <span class="spacer"></span>
+            <select class="mini-select" id="published-account-filter" aria-label="按账号筛选">
+              <option value="">全部账号</option>
+            </select>
+            <button class="btn small ghost" type="button" id="btn-sync-published">同步平台</button>
+            <button class="btn small ghost" type="button" id="btn-health-check">健康检查</button>
+          </div>
+          <div class="published-grid" id="published-grid"></div>
+          <div id="published-pager"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== 发布队列 ============================== -->
+    <section class="view" id="view-queue">
+      <div class="page-head">
+        <div>
+          <h1>发布队列</h1>
+          <p class="desc">失败自动重试；登录失效会标记账号并暂停相关任务。</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn" id="btn-queue-ready">待发布全部入队</button>
+          <button class="btn primary" id="btn-tick">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5l12 7.5-12 7.5z"></path></svg>
+            立即执行
+          </button>
+        </div>
+      </div>
+      <div id="queue-alert"></div>
+      <div class="card">
+        <div class="strip-note" id="queue-summary"></div>
+        <div class="toolbar">
+          <div class="seg" id="queue-filter">
+            <button type="button" class="active" data-queue-filter="">全部</button>
+            <button type="button" data-queue-filter="pending">排队中</button>
+            <button type="button" data-queue-filter="failed">失败</button>
+            <button type="button" data-queue-filter="retry">重试中</button>
+          </div>
+          <span class="spacer"></span>
+          <div class="queue-reasons" id="queue-reasons"></div>
+        </div>
+        <div class="job-list" id="job-list"></div>
+        <div id="job-pager"></div>
+      </div>
+    </section>
+
+    <!-- ============================== 发布记录 ============================== -->
+    <section class="view" id="view-records">
+      <div class="page-head">
+        <div><h1>发布记录</h1><p class="desc">成功与失败都留痕，含远端 ID，方便回查。</p></div>
+        <div class="page-actions">
+          <button class="btn" id="btn-refresh-records">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 5v6h-6"></path></svg>
+            刷新
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="rec-summary" id="record-summary"></div>
+        <div class="toolbar">
+          <div class="search-inline">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.2"></circle><path d="M15.6 15.6L20 20"></path></svg>
+            <input id="record-search" type="search" placeholder="搜索内容、账号或远端 ID" />
+          </div>
+          <select id="record-platform" class="mini-select" aria-label="按平台筛选">
+            <option value="">全部平台</option>
+            <option value="小红书">小红书</option>
+            <option value="抖音">抖音</option>
+            <option value="公众号">公众号</option>
+          </select>
+          <select id="record-result" class="mini-select" aria-label="按结果筛选">
+            <option value="">全部结果</option>
+            <option value="ok">成功</option>
+            <option value="failed">失败</option>
+          </select>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="btn-refresh-records-2" type="button" title="刷新" aria-label="刷新">
+            <svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 5v6h-6"></path></svg>
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="data" id="record-table">
+            <thead><tr><th style="width:88px">时间</th><th>内容</th><th>账号</th><th style="width:88px">结果</th><th>远端 ID</th><th>说明</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="record-pager"></div>
+      </div>
+    </section>
+
+    <!-- ============================== 选题 ============================== -->
+    <section class="view" id="view-topics">
+      <div class="view-head">
+        <div>
+          <h1>选题池</h1>
+          <p class="hint">从关键词、竞品或热榜找题，挑出值得写的再变成草稿。</p>
+        </div>
+        <div class="actions">
+          <button class="btn ghost" id="btn-import-topics">批量导入</button>
+          <button class="btn ghost" id="btn-import-library">导入题库</button>
+          <button class="btn ghost" id="btn-add-topic">手动添加</button>
+        </div>
+      </div>
+
+      <div class="topic-stats" id="topic-stats"></div>
+
+      <section class="mine-card">
+        <div class="mine-top">
+          <span class="mine-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path></svg>
+            选题挖掘
+          </span>
+          <div class="seg mine-modes" id="mine-modes" role="tablist" aria-label="挖掘方式">
+            <button type="button" class="active" data-mode="keyword" role="tab" aria-selected="true">关键词</button>
+            <button type="button" data-mode="competitor" role="tab" aria-selected="false">竞品账号</button>
+            <button type="button" data-mode="channel" role="tab" aria-selected="false">频道</button>
+            <button type="button" data-mode="trending" role="tab" aria-selected="false">小红书热榜</button>
+            <button type="button" data-mode="hot" role="tab" aria-selected="false">全网热榜</button>
+          </div>
+          <span class="spacer"></span>
+          <button class="link-btn" type="button" id="btn-mine-options" aria-expanded="false" aria-controls="mine-options">更多选项</button>
+        </div>
+        <div class="mine-main">
+          <input id="mine-input" type="text" placeholder="面试, 秋招, 自我介绍（逗号分隔）" />
+          <button class="btn primary" id="btn-mine">开始挖掘</button>
+        </div>
+        <div class="mine-options" id="mine-options" hidden>
+          <div class="mine-opt">
+            <span>用哪个账号</span>
+            <select id="mine-account" aria-label="挖掘使用的账号"></select>
+          </div>
+          <div class="mine-opt">
+            <span>每个词取</span>
+            <input id="mine-per-kw" type="number" min="5" max="50" value="20" aria-label="每个关键词取多少条" />
+          </div>
+          <div class="mine-opt" id="mine-hot-wrap" hidden>
+            <span>热榜来源</span>
+            <select id="mine-hot-source" aria-label="热榜来源">
+              <option value="douyin_hot">抖音热榜</option>
+              <option value="zhihu_hot">知乎热榜</option>
+              <option value="baidu_hot">百度热搜</option>
+              <option value="toutiao_hot">头条热榜</option>
+            </select>
+          </div>
+          <div class="mine-opt">
+            <span>补正文</span>
+            <input id="mine-detail" type="number" min="0" max="20" value="5" aria-label="补全正文的条数" />
+          </div>
+          <label class="check"><input type="checkbox" id="mine-product" /> 带一点产品</label>
+        </div>
+      </section>
+
+      <div class="topic-toolbar">
+        <div class="topic-status-row">
+          <label class="check all-check"><input type="checkbox" id="topic-check-all" /> 全选本页</label>
+          <div class="filter-chips" id="topic-status-chips" role="group" aria-label="按状态筛选">
+            <button type="button" class="on" data-status="pool">待用</button>
+            <button type="button" data-status="used">已用</button>
+            <button type="button" data-status="dropped">已丢弃</button>
+            <button type="button" data-status="">全部</button>
+          </div>
+        </div>
+        <input id="topic-search" type="search" placeholder="搜索标题、关键词或栏目" />
+        <select id="topic-sort" class="mini-select" aria-label="排序方式">
+          <option value="score">评分从高到低</option>
+          <option value="score_asc">评分从低到高</option>
+          <option value="heat">热度从高到低</option>
+          <option value="newest">最新入池</option>
+        </select>
+        <button class="btn small ghost" type="button" id="btn-filter-more" aria-expanded="false" aria-controls="filter-extra">筛选</button>
+        <button class="btn small ghost" type="button" id="btn-toggle-dedupes">去重记录</button>
+      </div>
+      <div class="filter-extra" id="filter-extra" hidden>
+        <label>来源
+          <select id="topic-source">
+            <option value="">全部来源</option>
+            <option value="keyword">关键词</option>
+            <option value="competitor">竞品</option>
+            <option value="channel">频道</option>
+            <option value="trending">小红书热榜</option>
+            <option value="douyin_hot">抖音热榜</option>
+            <option value="zhihu_hot">知乎热榜</option>
+            <option value="baidu_hot">百度热搜</option>
+            <option value="toutiao_hot">头条热榜</option>
+            <option value="library">题库</option>
+            <option value="manual">手动</option>
+          </select>
+        </label>
+        <label>评分不低于
+          <input id="topic-min-score" type="number" min="0" max="100" value="0" />
+        </label>
+        <span class="spacer"></span>
+        <span class="hint">筛选会立即生效</span>
+      </div>
+
+      <div class="topic-bulk" id="topic-bulk" hidden>
+        <span class="bulk-count" id="topic-selected">未选择</span>
+        <span class="spacer"></span>
+        <label class="bulk-field">语气
+          <select id="draft-tone">
+            <option value="">跟随选题语气</option>
+            <option value="story">经验分享</option>
+            <option value="informative">干货科普</option>
+            <option value="emotional">情感共鸣</option>
+            <option value="warn">避坑指南</option>
+            <option value="professional">专业测评</option>
+            <option value="casual">日常随意</option>
+          </select>
+        </label>
+        <label class="bulk-field">变体
+          <input id="draft-variants" type="number" min="1" max="3" value="1" />
+        </label>
+        <label class="check"><input type="checkbox" id="draft-cards" checked /> 同时配图</label>
+        <button class="btn small danger" id="btn-delete-topics" disabled>删除所选</button>
+        <button class="btn primary" id="btn-create-drafts">生成草稿</button>
+      </div>
+
+      <div class="dedupe-panel" id="dedupe-panel" hidden></div>
+
+      <div class="topic-list" id="topic-list"></div>
+      <div id="topic-pager"></div>
+    </section>
+
+    <!-- ============================== 计划 ============================== -->
+    <section class="view" id="view-schedule">
+      <div class="page-head">
+        <div>
+          <h1>发布计划</h1>
+          <p class="desc">优先从选题池取题，池空了才自动挖掘；可只产草稿，也可全自动发布。</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn" id="btn-refresh-schedules">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 5v6h-6"></path></svg>
+            刷新
+          </button>
+          <button class="btn primary" id="btn-new-schedule">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            新建计划
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div id="week-board"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div id="schedule-summary"></div>
+      </div>
+
+      <div class="schedule-list" id="schedule-list"></div>
+      <div id="schedule-pager"></div>
+    </section>
+
+    <!-- ============================== 模板（M3 自定义出图模板编辑器） ============================== -->
+    <section class="view" id="view-templates">
+      <div class="view-head ted-view-head">
+        <div>
+          <h1>模板</h1>
+          <p class="hint">自定义三页出图模板；保存后可在创作台「我的模板」里选用。</p>
+        </div>
+        <div class="actions">
+          <button class="btn ghost" id="ted-preview">预览当前页</button>
+          <button class="btn primary" id="ted-save">保存模板</button>
+        </div>
+      </div>
+      <header class="ted-topbar">
+        <input class="tpl-name" id="ted-tpl-name" value="未命名模板" title="模板名称" />
+        <div class="seg" id="ted-canvas-size-seg" title="当前页画布尺寸">
+          <button data-size="1080x1440" class="active">3:4</button>
+          <button data-size="1080x460">2.35:1</button>
+          <button data-size="1080x1080">1:1</button>
+          <button data-size="1080x1920">9:16</button>
+        </div>
+        <span class="spacer"></span>
+        <button class="btn ghost small" id="ted-undo" disabled title="Ctrl+Z">↶ 撤销</button>
+        <button class="btn ghost small" id="ted-redo" disabled title="Ctrl+Y">↷ 重做</button>
+      </header>
+      <div class="page-tabs">
+        <span class="lbl">当前编辑页：</span>
+        <button class="ptab active" data-page="cover">首页 / 封面</button>
+        <button class="ptab" data-page="content">内容页</button>
+        <button class="ptab" data-page="ending">末页</button>
+        <span class="note">每页独立画布与元素</span>
+      </div>
+      <div class="workspace">
+        <aside class="panel left">
+          <h3>元素库（拖到画布或点击添加）</h3>
+          <div class="lib" id="ted-lib">
+            <div class="lib-item" data-add="title"><span class="glyph">🅰</span><span class="name">大标题</span></div>
+            <div class="lib-item" data-add="text"><span class="glyph">🅣</span><span class="name">文本框</span></div>
+            <div class="lib-item" data-add="image"><span class="glyph">🖼</span><span class="name">图片框</span></div>
+            <div class="lib-item" data-add="shape"><span class="glyph">🟥</span><span class="name">色块</span></div>
+            <div class="lib-item" data-add="circle"><span class="glyph">⬤</span><span class="name">圆形</span></div>
+            <div class="lib-item" data-add="qrcode"><span class="glyph">▦</span><span class="name">二维码位</span></div>
+            <div class="lib-item" data-add="badge"><span class="glyph">🔢</span><span class="name">编号徽章</span></div>
+            <div class="lib-item" data-add="chip"><span class="glyph">🏷</span><span class="name">标签</span></div>
+            <div class="lib-item" data-add="divider"><span class="glyph">➖</span><span class="name">分隔线</span></div>
+            <div class="lib-item" data-add="dots"><span class="glyph">⠿</span><span class="name">圆点阵</span></div>
+          </div>
+          <div class="official">
+            <h3>官方模板库</h3>
+            <div class="lib-hint">单击模板 = 查看真实出样 · 双击或点「用此页编辑」= 转成可编辑版本（布局近似）</div>
+            <div id="ted-official-list"></div>
+          </div>
+          <h3 style="margin-top:16px">我的模板</h3>
+          <div class="tpl-list" id="ted-tpl-list"></div>
+        </aside>
+        <main class="center">
+          <div class="stage" id="ted-stage">
+            <div class="canvas-frame" id="ted-canvas-frame">
+              <div class="canvas" id="ted-canvas"><div class="grid-bg"></div></div>
+              <img class="ted-sample" id="ted-sample" alt="官方模板样张" hidden />
+            </div>
+            <div class="browse-bar" id="ted-browse-bar" hidden>
+              <span class="bb-name"></span>
+              <button id="ted-browse-use">用此页编辑</button>
+              <button id="ted-browse-exit" class="sub">返回编辑</button>
+            </div>
+          </div>
+          <div class="stage-tip">双击空白新建文本框 · 拖拽/缩放/旋转 · Shift+点选多选 · Ctrl+C 复制 / Ctrl+V 粘贴 · Del 删除 · Ctrl+Z/Y 撤销重做</div>
+        </main>
+        <aside class="panel right props">
+          <h3>属性</h3>
+          <div id="ted-props-empty" class="empty-tip">未选中元素。<br />点击画布中的元素进行编辑。</div>
+          <div id="ted-props" hidden>
+            <div class="group">
+              <b>位置与尺寸</b>
+              <div class="row">
+                <div class="field"><label>X</label><input type="number" id="ted-p-x" /></div>
+                <div class="field"><label>Y</label><input type="number" id="ted-p-y" /></div>
+              </div>
+              <div class="row">
+                <div class="field"><label>宽</label><input type="number" id="ted-p-w" /></div>
+                <div class="field"><label>高</label><input type="number" id="ted-p-h" /></div>
+              </div>
+              <div class="row">
+                <div class="field"><label>旋转（度）</label><input type="number" id="ted-p-rotate" /></div>
+                <div class="field"><label>透明度 <span id="ted-p-opacity-v">100%</span></label><input type="range" id="ted-p-opacity" min="10" max="100" value="100" /></div>
+              </div>
+            </div>
+            <div class="group" id="ted-grp-text">
+              <b>文本</b>
+              <div class="field" style="margin-bottom:8px"><label>内容（支持 {标题} {正文摘要} {日期} {结尾金句}）</label><textarea id="ted-p-content"></textarea></div>
+              <div class="row">
+                <div class="field"><label>字号</label><input type="number" id="ted-p-fontSize" /></div>
+                <div class="field"><label>字重</label><select id="ted-p-fontWeight"><option value="400">常规</option><option value="600">中粗</option><option value="800">加粗</option></select></div>
+              </div>
+              <div class="row">
+                <div class="field"><label>颜色</label><input type="color" id="ted-p-color" /></div>
+                <div class="field"><label>对齐</label><select id="ted-p-align"><option value="left">左</option><option value="center">中</option><option value="right">右</option></select></div>
+              </div>
+              <div class="row">
+                <div class="field"><label>行高</label><input type="number" id="ted-p-lineHeight" step="0.1" /></div>
+                <div class="field"><label>字间距</label><input type="number" id="ted-p-letterSpacing" /></div>
+              </div>
+            </div>
+            <div class="group">
+              <b>外观</b>
+              <div class="row">
+                <div class="field"><label>填充</label><input type="color" id="ted-p-bg" /></div>
+                <div class="field"><label>圆角</label><input type="number" id="ted-p-radius" /></div>
+              </div>
+              <div class="row">
+                <div class="field"><label>渐变至</label><input type="color" id="ted-p-grad-to" value="#ffffff" /></div>
+                <div class="field"><label>渐变方向</label>
+                  <select id="ted-p-grad-angle">
+                    <option value="">不渐变（纯色）</option>
+                    <option value="90">→ 向右</option>
+                    <option value="180">↓ 向下</option>
+                    <option value="45">↘ 斜下</option>
+                    <option value="135">↙ 斜下左</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="group">
+              <b>操作</b>
+              <div class="icon-row" style="margin-bottom:8px">
+                <button class="btn" id="ted-p-layer-up">图层上移</button>
+                <button class="btn" id="ted-p-layer-down">下移</button>
+              </div>
+              <div class="icon-row" style="margin-bottom:8px">
+                <button class="btn" id="ted-p-copy" title="Ctrl+C">复制选中</button>
+                <button class="btn" id="ted-p-paste" title="Ctrl+V">粘贴</button>
+              </div>
+              <div class="icon-row">
+                <button class="btn" id="ted-p-duplicate">原位副本</button>
+                <button class="btn danger" id="ted-p-delete">删除</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+      <div class="modal" id="ted-preview-modal" hidden>
+        <div class="modal-card">
+          <h4>模板应用预览（示例文案自动填充占位符）</h4>
+          <div class="canvas-frame" id="ted-preview-frame"><div class="canvas" id="ted-preview-canvas"></div></div>
+          <div class="modal-actions">
+            <button class="btn primary" id="ted-preview-use" hidden>使用当前模板编辑</button>
+            <button class="btn" id="ted-preview-close">关闭预览</button>
+          </div>
+        </div>
+      </div>
+      <div class="toast" id="ted-toast"></div>
+    </section>
+
+    <!-- ============================== 账号 ============================== -->
+    <section class="view" id="view-accounts">
+      <div class="page-head">
+        <div>
+          <h1>账号管理</h1>
+          <p class="desc">保持登录有效、控制每天发几篇。日常不用频繁进来。</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn" id="btn-check-all">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+            检查全部账号
+          </button>
+          <button class="btn ghost" id="btn-import-env">从配置文件导入</button>
+          <button class="btn primary" id="btn-add-account">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            添加账号
+          </button>
+        </div>
+      </div>
+      <div class="stats-row" id="account-stats"></div>
+      <div class="account-toolbar">
+        <select class="mini-select" id="account-group-filter" aria-label="按分组筛选">
+          <option value="">全部分组</option>
+        </select>
+        <button class="btn small ghost" id="btn-account-batch" aria-pressed="false">批量操作</button>
+        <div class="account-batch-bar" id="account-batch-bar" hidden>
+          <span class="bulk-count" id="account-selected-count">已选 0 个</span>
+          <button class="btn small ghost" data-action="account-batch" data-batch="check">检查登录</button>
+          <button class="btn small ghost" data-action="account-batch" data-batch="enable">启用</button>
+          <button class="btn small ghost" data-action="account-batch" data-batch="disable">停用</button>
+          <button class="btn small ghost" data-action="account-batch" data-batch="clear_cooldown">解除冷却</button>
+          <input class="mini-input" id="account-batch-group" placeholder="分组名" />
+          <button class="btn small ghost" data-action="account-batch" data-batch="group">设为分组</button>
+          <input class="mini-input" id="account-batch-tags" placeholder="标签，逗号分隔" />
+          <button class="btn small ghost" data-action="account-batch" data-batch="tag">设置标签</button>
+        </div>
+      </div>
+      <div class="acct-grid" id="account-grid"></div>
+    </section>
+
+    <!-- ==================== 个人中心 ==================== -->
+    <section class="view" id="view-profile">
+      <div class="view-scroll">
+        <div class="page-head">
+          <div>
+            <h1>个人中心</h1>
+            <p class="desc">账号、订阅与偏好设置都在这里。</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn" type="button" id="profile-help">
+              <svg class="ico" width="14" height="14"><use href="#i-external"></use></svg>帮助文档
+            </button>
+          </div>
+        </div>
+
+        <div class="card profile-hero">
+          <span class="avatar lg" id="profile-avatar">应</span>
+          <div class="profile-id">
+            <h2 id="profile-name">本地用户</h2>
+            <div class="meta"><span id="profile-email">—</span><span>·</span><span id="profile-joined">本地模式</span></div>
+          </div>
+          <div class="right">
+            <button class="btn" type="button" id="profile-password">
+              <svg class="ico" width="14" height="14"><use href="#i-key"></use></svg>修改密码
+            </button>
+            <button class="btn" type="button" id="profile-logout">
+              <svg class="ico" width="14" height="14"><use href="#i-logout"></use></svg>退出登录
+            </button>
+          </div>
+        </div>
+
+        <div class="profile-grid">
+          <div class="profile-col">
+            <div class="card profile-card">
+              <div class="card-head">
+                <h3>订阅与用量</h3>
+                <div class="right"><span class="pill brand" id="profile-plan-pill">本地模式</span></div>
+              </div>
+              <div class="plan-line">
+                <span class="plan-badge"><svg class="ico" width="12" height="12"><use href="#i-crown"></use></svg>PRO</span>
+                <div class="info"><b id="profile-plan-name">未订阅</b><span id="profile-plan-meta">登录云端后可查看订阅信息</span></div>
+                <button class="btn sm" type="button" id="profile-manage-plan">管理订阅</button>
+              </div>
+              <div class="profile-usage">
+                <div class="usage-row">
+                  <div class="usage-top"><span>本月发布</span><b id="profile-usage-posts">0 / 0</b></div>
+                  <div class="usage-bar"><i id="profile-usage-posts-bar" style="width:0%"></i></div>
+                </div>
+                <div class="usage-row">
+                  <div class="usage-top"><span>AI 额度</span><b id="profile-usage-ai">0 / 0</b></div>
+                  <div class="usage-bar"><i id="profile-usage-ai-bar" style="width:0%"></i></div>
+                </div>
+                <div class="usage-row">
+                  <div class="usage-top"><span>绑定账号</span><b id="profile-usage-accounts">0 / 0</b></div>
+                  <div class="usage-bar"><i id="profile-usage-accounts-bar" style="width:0%"></i></div>
+                </div>
+                <p style="margin-top:12px;font-size:11px;color:var(--ink-3);line-height:1.6">升级团队版可获得更多成员席位与发布额度。</p>
+              </div>
+            </div>
+
+            <div class="card profile-card">
+              <div class="card-head">
+                <h3>账号信息</h3>
+                <div class="right"><button class="btn sm" type="button" id="profile-save">保存修改</button></div>
+              </div>
+              <div class="card-body">
+                <div class="form-grid">
+                  <div class="form-item"><label>显示名称</label><input class="input" id="profile-input-name" type="text" value=""></div>
+                  <div class="form-item"><label>手机号</label><input class="input" id="profile-input-phone" type="text" value=""></div>
+                  <div class="form-item full"><label>邮箱</label><input class="input" id="profile-input-email" type="text" value=""></div>
+                  <div class="form-item"><label>所在时区</label><select class="select"><option>Asia/Shanghai (UTC+8)</option><option>Asia/Tokyo (UTC+9)</option></select></div>
+                  <div class="form-item"><label>界面语言</label><select class="select"><option>简体中文</option><option>English</option></select></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card profile-card">
+              <div class="card-head"><h3>安全</h3></div>
+              <div class="device-row">
+                <span class="ico-box"><svg class="ico" width="15" height="15"><use href="#i-key"></use></svg></span>
+                <div class="txt"><b>登录密码</b><span>建议定期更换密码</span></div>
+                <button class="link-btn" type="button" data-profile-action="password">修改</button>
+              </div>
+              <div class="device-row">
+                <span class="ico-box"><svg class="ico" width="15" height="15"><use href="#i-shield"></use></svg></span>
+                <div class="txt"><b>两步验证</b><span>未开启，建议开启以保护账号</span></div>
+                <button class="link-btn" type="button" data-profile-action="twofa">开启</button>
+              </div>
+              <div class="device-row">
+                <span class="ico-box"><svg class="ico" width="15" height="15"><use href="#i-grid"></use></svg></span>
+                <div class="txt"><b>当前设备</b><span>最近活跃 · 本机登录</span></div>
+                <span class="pill ok">在线</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-col">
+            <div class="card profile-card">
+              <div class="card-head"><h3>偏好设置</h3></div>
+              <div class="device-row">
+                <div class="txt"><b>深色主题</b><span>切换界面外观</span></div>
+                <span class="switch" id="profile-theme-switch"><i></i></span>
+              </div>
+              <div class="device-row">
+                <div class="txt"><b>开机自动启动</b><span>启动后最小化到托盘</span></div>
+                <span class="switch on"><i></i></span>
+              </div>
+              <div class="device-row">
+                <div class="txt"><b>发布前二次确认</b><span>避免误发，推荐开启</span></div>
+                <span class="switch on"><i></i></span>
+              </div>
+            </div>
+
+            <div class="card profile-card">
+              <div class="card-head"><h3>关于</h3></div>
+              <div class="device-row">
+                <div class="txt"><b>应声运营</b><span>版本 v2.4.0 · 已是最新</span></div>
+                <button class="btn sm" type="button" id="profile-update">检查更新</button>
+              </div>
+              <div class="device-row">
+                <div class="txt"><b>帮助与反馈</b><span>使用文档、问题反馈</span></div>
+                <button class="link-btn" type="button" id="profile-feedback">打开</button>
+              </div>
+            </div>
+
+            <div class="card profile-card danger-zone">
+              <div class="card-head"><h3>危险操作</h3></div>
+              <div class="card-body">
+                <p style="font-size:11.5px;color:var(--ink-3);line-height:1.7">删除账号会清空所有内容、发布记录与授权信息，且不可恢复。</p>
+                <button class="btn sm danger" style="margin-top:10px" type="button" id="profile-delete">删除账号</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 设置 ==================== -->
+    <section class="view" id="view-settings">
+      <div class="view-scroll">
+        <div class="page-head">
+          <div>
+            <h1>设置</h1>
+            <p class="desc">外观、发布安全与通知都在这里，修改后立即生效。</p>
+          </div>
+        </div>
+
+        <div class="settings-layout">
+          <div class="set-nav" id="set-nav">
+            <button class="active" type="button" data-set="general"><svg class="ico" width="15" height="15"><use href="#i-settings"></use></svg>通用</button>
+            <button type="button" data-set="appearance"><svg class="ico" width="15" height="15"><use href="#i-palette"></use></svg>外观与主题</button>
+            <button type="button" data-set="publish"><svg class="ico" width="15" height="15"><use href="#i-shield"></use></svg>发布安全</button>
+            <button type="button" data-set="notify"><svg class="ico" width="15" height="15"><use href="#i-message"></use></svg>通知</button>
+            <button type="button" data-set="data"><svg class="ico" width="15" height="15"><use href="#i-database"></use></svg>数据备份</button>
+            <button type="button" data-set="system"><svg class="ico" width="15" height="15"><use href="#i-settings"></use></svg>系统</button>
+          </div>
+
+          <div id="set-panels">
+            <div class="card" data-panel="general">
+              <div class="card-head"><h3>通用</h3></div>
+              <div class="set-row">
+                <div class="label"><b>默认发布平台</b><p>新建内容时默认勾选的平台，可在创作台随时修改。</p></div>
+                <div class="control"><select class="select" id="set-default-platform" style="width:170px"><option value="xiaohongshu">小红书</option><option value="douyin">抖音</option><option value="wechat_mp">公众号</option></select></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>自动保存</b><p>编辑过程中每 30 秒保存一次草稿，关闭窗口不会丢失。</p></div>
+                <div class="control"><span class="switch on" data-toggle="autosave"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>界面语言</b><p>当前仅提供简体中文，后续会跟随系统语言。</p></div>
+                <div class="control"><select class="select" style="width:150px"><option>简体中文</option></select></div>
+              </div>
+            </div>
+
+            <div class="card" data-panel="appearance" hidden>
+              <div class="card-head"><h3>外观与主题</h3></div>
+              <div class="set-row">
+                <div class="label"><b>界面主题</b><p>跟随官网配色，深浅色都可正常阅读；预览始终保留平台原生样式。</p></div>
+              </div>
+              <div style="padding:0 16px 16px">
+                <div class="theme-options">
+                  <button class="theme-card active" type="button" data-theme-value="light">
+                    <div class="theme-preview"><div class="tp-side"></div><div class="tp-main"><div class="tp-line"></div><div class="tp-line short"></div><div class="tp-line"></div></div></div>
+                    <div class="tname">浅色</div>
+                  </button>
+                  <button class="theme-card dark" type="button" data-theme-value="dark">
+                    <div class="theme-preview"><div class="tp-side"></div><div class="tp-main"><div class="tp-line"></div><div class="tp-line short"></div><div class="tp-line"></div></div></div>
+                    <div class="tname">深色</div>
+                  </button>
+                  <button class="theme-card" type="button" data-theme-value="auto">
+                    <div class="theme-preview"><div class="tp-side"></div><div class="tp-main"><div class="tp-line"></div><div class="tp-line short"></div><div class="tp-line"></div></div></div>
+                    <div class="tname">跟随系统</div>
+                  </button>
+                </div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>品牌主色</b><p>只影响强调色与按钮，不影响平台预览与内容图片。</p></div>
+                <div class="control">
+                  <button class="chip" type="button" style="background:var(--brand-soft);color:var(--brand)">小红书红</button>
+                  <button class="chip" type="button">默认</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" data-panel="publish" hidden>
+              <div class="card-head"><h3>发布安全</h3></div>
+              <div class="set-row">
+                <div class="label"><b>失败自动重试</b><p>网络波动或平台超时会自动重试，登录失效不会无限重试。</p></div>
+                <div class="control"><select class="select" style="width:130px"><option>3 次</option><option>1 次</option><option>不重试</option></select></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>默认可见范围</b><p>新账号建议先用「仅自己可见」跑通一次发布流程。</p></div>
+                <div class="control"><select class="select" style="width:170px"><option>仅自己可见</option><option>公开可见</option></select></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>发布前二次确认</b><p>点击发布后弹出确认，避免误触；批量队列不受影响。</p></div>
+                <div class="control"><span class="switch on" data-toggle="confirm-publish"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>账号操作间隔</b><p>同一账号两次发布之间的最小间隔，降低风控概率。</p></div>
+                <div class="control"><select class="select" style="width:130px"><option>15 分钟</option><option>30 分钟</option><option>60 分钟</option></select></div>
+              </div>
+            </div>
+
+            <div class="card" data-panel="notify" hidden>
+              <div class="card-head"><h3>通知</h3></div>
+              <div class="set-row">
+                <div class="label"><b>发布失败推送</b><p>失败时推送到桌面通知，队列会保留原文等待处理。</p></div>
+                <div class="control"><span class="switch on" data-toggle="notify-fail"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>每日汇总</b><p>每天 21:00 推送当天的发布数量、成功率与待处理事项。</p></div>
+                <div class="control"><span class="switch" data-toggle="notify-daily"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>Webhook 地址</b><p>可接入飞书或企业微信机器人，留空则只使用站内通知。</p></div>
+                <div class="control"><input class="input" style="width:260px" placeholder="https://open.feishu.cn/…"></div>
+              </div>
+            </div>
+
+            <div class="card" data-panel="data" hidden>
+              <div class="card-head"><h3>数据备份</h3></div>
+              <div class="set-row">
+                <div class="label"><b>自动备份</b><p>每天凌晨备份数据库与账号配置，保留最近 7 份。</p></div>
+                <div class="control"><span class="switch on" data-toggle="auto-backup"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>立即备份</b><p>手动生成一份完整备份，包含草稿、选题、账号与发布记录。</p></div>
+                <div class="control"><button class="btn" type="button" id="set-backup-now"><svg class="ico" width="14" height="14"><use href="#i-download"></use></svg>立即备份</button></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>导出数据</b><p>导出为 CSV，可用于复盘或迁移到其他工具。</p></div>
+                <div class="control"><button class="btn" type="button" id="set-export-all">导出全部</button></div>
+              </div>
+            </div>
+
+            <div class="card" data-panel="system" hidden>
+              <div class="card-head"><h3>系统</h3></div>
+              <div class="set-row">
+                <div class="label"><b>关闭窗口时最小化到托盘</b><p>点右上角关闭不会退出，发布任务在后台继续执行。</p></div>
+                <div class="control"><span class="switch on" data-toggle="tray"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>开机自动启动</b><p>随 Windows 启动，错过的时间段会补跑。</p></div>
+                <div class="control"><span class="switch" data-toggle="autostart"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>系统通知</b><p>发布失败、登录失效时发送 Windows 通知。</p></div>
+                <div class="control"><span class="switch on" data-toggle="sys-notify"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>后台发布</b><p>窗口最小化或关闭后，队列继续按计划执行。</p></div>
+                <div class="control"><span class="switch on" data-toggle="background"><i></i></span></div>
+              </div>
+              <div class="set-row">
+                <div class="label"><b>首次启动引导</b><p>重新查看绑定账号、选择模板与发布第一篇的引导。</p></div>
+                <div class="control"><button class="btn" type="button" id="set-onboarding">重新查看</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  </div>
+  </div>
+
+  <footer class="statusbar">
+    <span class="st-item"><i class="st-dot" id="status-engine-dot"></i><span id="status-engine">引擎检测中</span></span>
+    <span class="st-sep"></span>
+    <span class="st-item">队列 <b id="status-queue">0</b></span>
+    <span class="st-item">账号 <b id="status-accounts">0 / 0</b></span>
+    <span class="st-spacer"></span>
+    <span class="st-item"><button class="link-btn st-link" id="btn-status-tasks" type="button">任务中心</button></span>
+    <span class="st-item" id="status-tasks">就绪</span>
+    <span class="st-sep"></span>
+    <span class="st-item">最近发布 <b id="status-last">—</b></span>
+  </footer>
+
+  <div class="user-pop" id="user-pop" hidden>
+    <div class="up-head">
+      <span class="avatar" id="up-avatar">应</span>
+      <div class="up-id"><b id="up-name">本地用户</b><span id="up-email">—</span></div>
+      <span class="up-plan" id="up-plan">本地版</span>
+    </div>
+    <div class="up-quota">
+      <div class="upq-top"><span>本月发布</span><b id="up-quota-value">0 / 0</b></div>
+      <div class="quota-bar"><i id="up-quota-bar" style="width:0%"></i></div>
+      <div class="upq-foot"><span id="up-quota-foot">本地模式</span><button class="link-btn" type="button" data-view="settings">升级</button></div>
+    </div>
+    <div class="up-group">
+      <button class="up-item" type="button" data-view="profile"><svg class="ico" width="15" height="15"><use href="#i-user"></use></svg>个人中心<svg class="up-chev" width="13" height="13"><use href="#i-chevron-right"></use></svg></button>
+      <button class="up-item" type="button" data-view="accounts"><svg class="ico" width="15" height="15"><use href="#i-users"></use></svg>账号与登录<span class="up-sub" id="up-accounts">0 个账号</span></button>
+    </div>
+    <div class="up-group">
+      <button class="up-item" type="button" id="up-theme"><svg class="ico" width="15" height="15"><use href="#i-moon"></use></svg>外观<span class="up-sub" id="up-theme-label">浅色</span><svg class="up-chev" width="13" height="13"><use href="#i-chevron-right"></use></svg></button>
+      <button class="up-item" type="button" id="up-notify"><svg class="ico" width="15" height="15"><use href="#i-bell"></use></svg>通知<span class="up-badge" id="up-notify-badge">0</span></button>
+    </div>
+    <div class="up-group">
+      <button class="up-item" type="button" data-view="settings"><svg class="ico" width="15" height="15"><use href="#i-settings"></use></svg>设置<kbd class="kbd">Ctrl ,</kbd></button>
+      <button class="up-item" type="button" id="up-help"><svg class="ico" width="15" height="15"><use href="#i-help"></use></svg>帮助与反馈<svg class="up-chev" width="13" height="13"><use href="#i-chevron-right"></use></svg></button>
+      <button class="up-item" type="button" id="up-update"><svg class="ico" width="15" height="15"><use href="#i-refresh"></use></svg>检查更新<span class="up-sub">v2.4.0</span></button>
+    </div>
+    <button class="up-out" type="button" id="up-quit"><svg class="ico" width="15" height="15"><use href="#i-logout"></use></svg>退出登录</button>
+  </div>
+
+  <div class="layer" id="win-layer" hidden>
+    <div class="win" id="win" role="dialog" aria-modal="true">
+      <header class="win-head">
+        <b id="win-title">设置</b>
+        <span class="win-sub" id="win-sub">修改后立即生效</span>
+        <button class="win-x" id="win-close" type="button" title="关闭"><svg class="ico" width="16" height="16"><use href="#i-x"></use></svg></button>
+      </header>
+      <div class="win-body" id="win-body"></div>
+    </div>
+  </div>
+
+  <aside class="drawer" id="account-drawer" hidden aria-label="账号详情">
+    <div class="drawer-head">
+      <b id="drawer-title">账号详情</b>
+      <button class="icon-btn" id="drawer-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+  <div class="drawer-mask" id="drawer-mask" hidden></div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-mask hidden" id="modal-mask">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modal-title">标题</h3>
+        <button class="icon-btn" id="modal-close" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-foot" id="modal-foot"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script src="/static/template-editor.js"></script>
+  <script src="/static/ui-refresh.js"></script>
+</body></html>

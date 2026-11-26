@@ -1,0 +1,9 @@
+{
+  "name": "echoq-ops",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EchoQ-Ops local signing runtime (crypto-js)",
+  "dependencies": {
+    "crypto-js": "^4.2.0"
+  }
+}

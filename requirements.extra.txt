@@ -1,0 +1,5 @@
+# 上游 requirements.txt 未列出、但本地部署实际需要的依赖。
+# 安装：
+#   .venv\Scripts\python.exe -m pip install -r requirements.extra.txt
+cryptography==50.0.2   # vendor/xhs_utils/xhs_core/ssk.py 的 webSsk 协商（AESGCM / X25519）需要
+Pillow==13.0.0         # login.py 生成扫码登录用的二维码图片
