@@ -9151,7 +9151,8 @@ async function doAction(action, element) {
 
 function bindEvents() {
   document.addEventListener("click", async (event) => {
-    if (event.target.closest(".draft-pick")) return;
+    // 勾选框/勾选标签属于选择操作，不要冒泡成卡片的「打开编辑」动作。
+    if (event.target.closest(".draft-pick, .cc-check, .draft-check")) return;
     // 折叠箭头（summary）自己处理展开，不要冒泡成卡片的「打开」动作。
     if (event.target.closest("summary")) return;
     const actionNode = event.target.closest("[data-action]");
