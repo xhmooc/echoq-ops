@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     height: 1440,
     motion: true,
   });
-  const frames = await captureFrames(motionHtml, 1080, 1440, [0, 3, 5.96]);
+  const frames = await captureFrames(motionHtml, { width: 1080, height: 1440, fps: 1, duration: 6 });
   fs.writeFileSync(path.join(OUT, "motion-frame-0.png"), frames[0]);
   fs.writeFileSync(path.join(OUT, "motion-frame-2.png"), frames[2]);
   if (frames[0].equals(frames[2])) throw new Error("动效帧完全相同，__seek 未生效");

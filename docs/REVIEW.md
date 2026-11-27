@@ -1,4 +1,9 @@
-# 代码与安全 Review
+# 代码与安全 Review（历史存档 · Python 版）
+
+> 本文档记录 2026-11-15 对旧版 Python 运营台的审查结果，仅作历史参考。
+> Python 版已于 2026-11-26 从仓库移除；当前 Node/Electron 主线的审查见
+> [REVIEW-NODE-BACKEND-20261124.md](REVIEW-NODE-BACKEND-20261124.md) 与
+> [REVIEW-FULL-20261125.md](REVIEW-FULL-20261125.md)。
 
 日期：2026-11-15（P1/P2 修复后更新）
 范围：`ops/` 全部模块、`vendor/apis/` 的调用面、`ops/web/routers/` 全部路由、`datas/ops/` 的落盘行为、自检覆盖。

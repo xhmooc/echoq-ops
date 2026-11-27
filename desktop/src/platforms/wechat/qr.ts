@@ -10,7 +10,7 @@ import { BrowserWindow, session as electronSession } from "electron";
 import { MP_HOME, now } from "../../core/config";
 import { log } from "../../core/log";
 import { PlatformFailure } from "./client";
-import { parseAccount, tokenFromUrl, type AccountInfo } from "./parser";
+import { avatarFromHtml, parseAccount, tokenFromUrl, type AccountInfo } from "./parser";
 
 const QR_TTL = 300;
 const NEEDS_ACTION_WINDOW = 120;
@@ -198,6 +198,20 @@ export class WechatQrSession {
     this.avatar = info.avatar;
     this.fakeid = info.fakeid;
     this.token = info.token;
+    /* 头像兜底：扫码落地页常不带头像字段，用拿到的 token 再访问一次后台首页补拉。 */
+    if (!this.avatar && this.token && this.win && !this.win.isDestroyed()) {
+      try {
+        await this.win.loadURL(
+          `https://mp.weixin.qq.com/cgi-bin/home?t=home/index&lang=zh_CN&token=${this.token}`
+        );
+        await wait(1200);
+        const again = String((await this.exec(HTML_SCRIPT).catch(() => "")) || "");
+        const avatar = avatarFromHtml(again);
+        if (avatar) this.avatar = avatar;
+      } catch {
+        /* 拉不到头像不阻塞登录 */
+      }
+    }
     const ses = this.win.webContents.session;
     const all = await ses.cookies.get({});
     const cookies = all

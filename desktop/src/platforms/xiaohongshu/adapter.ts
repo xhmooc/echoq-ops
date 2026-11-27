@@ -20,6 +20,7 @@ import { getSetting } from "../../core/settings";
 import type { AccountRow } from "../../core/accounts";
 import { ingest } from "../../services/topics";
 import {
+  creatorDeleteNote,
   creatorNavigate,
   creatorPostedNotesPage,
   generateSearchId,
@@ -32,6 +33,7 @@ import {
   pcUserPostedNotes,
 } from "./api";
 import { publishImageNote, XhsPublishError } from "./publish";
+import { deleteXhsNoteViaUi } from "./deleteUi";
 import {
   creatorCookieMap,
   hasCreatorLogin,
@@ -385,6 +387,38 @@ export async function publish(
   }
 }
 
+export async function deletePublished(
+  account: AccountRow,
+  noteId: string
+): Promise<{ ok: boolean; message: string }> {
+  const remoteId = String(noteId || "").trim();
+  if (!remoteId) return { ok: false, message: "缺少小红书笔记 ID，无法删除" };
+  const { cookieMap } = loginState(account);
+  if (!hasCreatorLogin(cookieMap)) {
+    return { ok: false, message: "小红书登录态已失效，请重新登录该账号" };
+  }
+  try {
+    const navigated = await creatorNavigate(creatorCookieMap(cookieMap), account.proxy);
+    const result = await creatorDeleteNote(navigated.cookieMap, remoteId, account.proxy);
+    if (result.success) return { ok: true, message: "小红书笔记已删除" };
+    // 公开删除接口已下线（返回 404 / No message available），改用创作中心页面删除。
+    if (result.status === 404 || /no message|not found|404/i.test(result.message)) {
+      return await deleteXhsNoteViaUi(navigated.cookieMap, remoteId, account.proxy);
+    }
+    return { ok: false, message: result.message || "小红书删除失败" };
+  } catch (error) {
+    log.error(
+      `小红书账号 ${account.id} 删除笔记 ${remoteId} 失败: ${
+        error instanceof Error ? error.stack : String(error)
+      }`
+    );
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "小红书删除请求异常",
+    };
+  }
+}
+
 export async function fetchPublished(
   account: AccountRow,
   cursor: unknown = 0,
@@ -727,6 +761,10 @@ function candidateFromNote(
   const title = noteTitleOf(item);
   if (!noteId || !title) return null;
   const interact = asRecord(card.interact_info || card.interact);
+  const xsecToken = String(item.xsec_token || "");
+  const suffix = xsecToken
+    ? `?xsec_token=${encodeURIComponent(xsecToken)}&xsec_source=pc_search`
+    : "";
   return {
     source,
     source_ref: noteId,
@@ -740,8 +778,9 @@ function candidateFromNote(
     comments: parseCount(interact.comment_count),
     shares: parseCount(interact.share_count),
     published_at: timestamp(card.time ?? card.create_time ?? 0),
-    xsec_token: String(item.xsec_token || ""),
-    raw: { note_id: noteId, title },
+    xsec_token: xsecToken,
+    // 直接把可打开的原文链接一起存下来，选题页无需再回查平台。
+    raw: { note_id: noteId, title, xsec_token: xsecToken, url: `https://www.xiaohongshu.com/explore/${noteId}${suffix}` },
   };
 }
 

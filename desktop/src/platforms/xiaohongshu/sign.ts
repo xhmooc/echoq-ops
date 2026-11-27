@@ -26,10 +26,12 @@ const PC_BUSINESS_ACCEPT_LANGUAGE = "zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7,ja;q=0.
 const SIGN_TIMEOUT_MS = 30_000;
 const DS_TIMEOUT_MS = 8_000;
 
-const TIER_GATE: Record<MnsTier, { prefix: string; length: number }> = {
-  "0101": { prefix: "mns0101_", length: 205 },
-  "0201": { prefix: "mns0201_", length: 208 },
-  "0301": { prefix: "mns0301_", length: 200 },
+// PC 与 Creator 的同一档位输出长度不同（Creator 0101 是 196/197/198，
+// PC 0101 是 205），这里取并集，既能拦住异常输出，也不会误杀正常签名。
+const TIER_GATE: Record<MnsTier, { prefix: string; lengths: number[] }> = {
+  "0101": { prefix: "mns0101_", lengths: [196, 197, 198, 205] },
+  "0201": { prefix: "mns0201_", lengths: [200, 208] },
+  "0301": { prefix: "mns0301_", lengths: [200] },
 };
 
 let seqValue = 0;
@@ -363,8 +365,10 @@ async function runSigner(
       const xs = String(result.xs || "");
       const x3 = String(result.x3 || "");
       const gate = TIER_GATE[tier];
-      if (!xs || !x3.startsWith(gate.prefix) || x3.length !== gate.length) {
-        throw new Error(`小红书签名未达到 ${tier} 档位要求`);
+      if (!xs || !x3.startsWith(gate.prefix) || !gate.lengths.includes(x3.length)) {
+        throw new Error(
+          `小红书签名未达到 ${tier} 档位要求（${x3.slice(0, 12)}…，长度 ${x3.length}）`
+        );
       }
       return {
         xs,

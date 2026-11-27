@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>方向二 · 数据流</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; }
+  body { font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+  .board { position:relative; width:1920px; height:1080px; background:#08090a; }
+  .glow1 { position:absolute; left:-200px; top:-260px; width:1100px; height:800px;
+           background:radial-gradient(closest-side, rgba(255,36,66,.22), rgba(255,36,66,0)); }
+  .glow2 { position:absolute; right:-160px; bottom:-220px; width:900px; height:640px;
+           background:radial-gradient(closest-side, rgba(255,122,150,.12), rgba(255,122,150,0)); }
+  .grid { position:absolute; inset:0;
+          background:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+          background-size:96px 96px; mask-image:radial-gradient(ellipse at 50% 40%, #000 30%, transparent 78%); }
+
+  .brand { position:absolute; left:110px; top:70px; display:flex; align-items:center; gap:14px; }
+  .brand img { width:42px; height:42px; border-radius:10px; box-shadow:0 0 34px rgba(255,36,66,.55); }
+  .brand b { font-size:24px; color:#f4f4f6; }
+  .brand span { font-size:17px; color:#85858e; font-family:'JetBrains Mono',monospace; }
+
+  .copy { position:absolute; left:110px; top:300px; width:900px; }
+  .copy .kicker { font-family:'JetBrains Mono',monospace; font-size:19px; color:#ff7a96; letter-spacing:.14em; margin-bottom:30px; }
+  .copy h1 { font-size:112px; line-height:1.18; color:#f4f4f6; font-weight:900; letter-spacing:-0.01em; }
+  .copy h1 em { font-style:normal; background:linear-gradient(100deg,#ff2442 10%,#ff7a96 90%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .copy p { margin-top:36px; font-size:26px; line-height:1.7; color:#9a9aa4; width:760px; }
+  .copy p b { color:#e8e8ed; font-weight:700; }
+
+  .panel { position:absolute; right:96px; top:196px; width:648px; height:520px;
+           background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+           border:1px solid rgba(255,122,150,.4); border-radius:18px;
+           box-shadow:0 0 0 1px rgba(255,36,66,.12), 0 30px 80px rgba(0,0,0,.6), 0 0 90px rgba(255,36,66,.16);
+           backdrop-filter:blur(8px); transform:perspective(1400px) rotateY(-9deg) rotateX(1.5deg); overflow:hidden; }
+  .panel::before { content:""; position:absolute; left:0; right:0; top:0; height:2px;
+                   background:linear-gradient(90deg, transparent, #ff2442, #ff7a96, transparent); }
+  .panel-head { display:flex; justify-content:space-between; align-items:center; padding:22px 26px 14px; }
+  .panel-head b { font-size:20px; color:#f4f4f6; }
+  .panel-head span { font-family:'JetBrains Mono',monospace; font-size:14px; color:#85858e; }
+  .row { display:flex; align-items:center; gap:16px; margin:0 26px; padding:17px 4px; border-bottom:1px solid rgba(255,255,255,.07); }
+  .row:last-child { border-bottom:none; }
+  .row .t { font-family:'JetBrains Mono',monospace; font-size:19px; color:#ff7a96; width:84px; }
+  .row .title { flex:1; font-size:20px; color:#e8e8ed; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .st { font-size:15px; padding:5px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.16); color:#9a9aa4; }
+  .row .st.live { border-color:rgba(255,36,66,.6); color:#ff7a96; background:rgba(255,36,66,.12); }
+  .row .dot { width:8px; height:8px; border-radius:50%; background:#3a3a44; }
+  .row .dot.on { background:#ff2442; box-shadow:0 0 12px #ff2442; }
+
+  .panel-foot { position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:space-between;
+                padding:18px 26px; border-top:1px solid rgba(255,255,255,.08);
+                font-family:'JetBrains Mono',monospace; font-size:14px; color:#6b6b76; }
+  .panel-foot b { color:#ff7a96; font-weight:400; }
+
+  .chips { position:absolute; right:150px; top:756px; display:flex; gap:18px; }
+  .chip { display:flex; align-items:center; gap:12px; padding:14px 24px; border-radius:999px;
+          background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); }
+  .chip i { width:9px; height:9px; border-radius:50%; background:#ff2442; box-shadow:0 0 10px #ff2442; }
+  .chip b { font-size:20px; color:#f4f4f6; }
+  .chip span { font-size:16px; color:#85858e; }
+
+  .ticks { position:absolute; left:110px; bottom:196px; display:flex; gap:10px; align-items:flex-end; height:56px; }
+  .ticks i { width:7px; border-radius:3px; background:linear-gradient(180deg,#ff2442,#ff7a96); opacity:.85; }
+
+  .meta { position:absolute; left:0; right:0; bottom:0; height:140px; background:#0d0e12; border-top:1px solid rgba(255,255,255,.09);
+          display:flex; align-items:center; padding:0 110px; gap:56px; }
+  .meta .name b { font-size:26px; color:#f4f4f6; display:block; }
+  .meta .name span { font-size:18px; color:#85858e; display:block; margin-top:6px; }
+  .swatches { display:flex; gap:22px; margin-left:auto; }
+  .sw { text-align:center; }
+  .sw i { display:block; width:34px; height:34px; border-radius:50%; border:1px solid rgba(255,255,255,.14); margin:0 auto; }
+  .sw span { font-size:14px; color:#85858e; display:block; margin-top:7px; font-family:'JetBrains Mono',monospace; }
+  .ref { margin-left:56px; text-align:right; }
+  .ref span { font-size:16px; color:#6b6b76; display:block; }
+  .ref b { font-size:19px; color:#e8e8ed; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+  <div class="grid"></div>
+
+  <div class="brand">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAF0ElEQVR4nO3a7U0jSRiF0a7RhgKJQDQT0UQDiUAuXi0S0sia0YJdH2/1Pef3LG5b3KerzR4HAAAAAAAAAAAAAACwk7b6Aiq4PDxdVl8Da7T31+gNRL15Q+erWkgYTv0mDZ5e2kmDcLo3ZfSM1k4Ug9O8EcNntnaCEGz9BoyeKtqmMdjyog2fqtpmIdjqYg2fXbRNQvDj2ITxs5PLJv9vSflK7fJBwo6ngdInAOPnDC6Fb2Ily1T5A4MznQbKnQCMnzO7FLu5lQpAtQ8Hzv57XuI4UukDgaRHguUnAOMn2WXxze9H8puHClbuYFkAjB/W72FJAIwfauxiegCMH+rsY2oAjB9q7WRaAIwf6u1l+Z8BgXWmBMDdH2ruZngAjB/q7mdoAIwfau/IdwAQbFgA3P2h/p6GBMD4YY9deQSAYN0D4O4P4/TeV9cAGD+M13NnHgEgWLcAuPvDPL325gQAwboEwN0f5uuxOycACCYAEOzuADj+wzr37s8JAILdFQB3f1jvnh06AUAwAYBgNwfA8R/quHWPTgAQTAAgmABAsJsC4Pkf6rlll/+MuZQwby9f/7ePz8d23l5+ffnfPj7/HHotdNVu+Y+cAL45+h1j8J3R/40YTNfeX7+1aQFYMfzKIegx/GtCUDYAvgRcPf6RP7fC+Ef+XO7mBFBtoCtOAzMH6jSw9wkg7vl/9t15/uvNvTs7DQz13X16BIBgAlDx2XzW6666GzsFlCEAVb+YG/36q0e4+vX5IAAQTAAq3v3H/9mxxt23ynUEEwAIJgAQTACqHv9HXU+1Y3e16wkjABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggnAtcfn49TX8/j886ik2vWEEQAIJgAQTAAqPwaMuo4qx+4q1xFMACCYAFQ9BYx+/dV339WvzwcBqBiBWa+7aoTGX4YAQLBvB6C9v7YjyexTwPzXm3sKcPcf6rv7vGnMl4eny5Ho7eW83zn85+3l17CfbfglA+ARoMaf5Y4SRo3U+MtyAlh5Gqgy/FGnAcOfziNA9RhUHn2PGBj9UgIAwdqM7wDi/hIAG7hll74EhGACAMEEAILdHADfA0Adt+7RCQCCCQAEuysAHgNgvXt26AQAwe4OgFMArHPv/pwAIJgAQLAuAfAYAPP12J0TAATrFgCnAJin196cACBY1wA4BcB4PXfW/QQgAjBO7315BIBgQwLgFAB77GrYCUAEoP6ePAJAsKEBcAqA2jsafgIQAai7nymPACIANXfjOwAINi0ATgFQby9TTwAiALV2Mv0RQASgzj6WfAcgAlBjF8u+BBQBWL+HpX8FEAE4lu5g+Z8BRYBkbeH4P17/KOTy8HRZfQ2QMPwyJ4CKHwqk/J6XCkC1DwfO/vtd6mKueSTgLFqx4Zc9AezwocFZfo/LXtg1pwF20woPf4sTwG4fJuz2+7rFRV5zGqCqtsnwP211sdeEgCraZsP/tOVF/4kYMFvbdPS/2/4NXBMCRmsnGP6n07yRPxEDemknGv3vTvmm/kYQSB/8tYg3+X+EIVcLGToAAAAAAAAAAAAAcJzJv+iymMgyQpzKAAAAAElFTkSuQmCC" alt="">
+    <b>应声运营</b><span>ECHOQ OPS</span>
+  </div>
+
+  <div class="copy">
+    <div class="kicker">PUBLISH QUEUE · 09:40 → 18:30</div>
+    <h1>一条<em>链路</em>，<br>跑完所有运营。</h1>
+    <p>选题自动进池，成稿带合规检查，配图落盘前自检碰撞；<b>多账号队列各排各的</b>，失败自动退避重试，数据按周期自动回收。</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><b>发布队列</b><span>PUBLISH_QUEUE / 3 ACCOUNTS</span></div>
+    <div class="row"><span class="dot on"></span><span class="t">09:40</span><span class="title">小个子大衣挑选指南</span><span class="st live">已发布</span></div>
+    <div class="row"><span class="dot on"></span><span class="t">12:10</span><span class="title">咖啡店探店｜城南新店</span><span class="st live">发布中</span></div>
+    <div class="row"><span class="dot"></span><span class="t">15:00</span><span class="title">秋冬通勤穿搭 5 套不重样</span><span class="st">排队中</span></div>
+    <div class="row"><span class="dot"></span><span class="t">18:30</span><span class="title">周末去哪儿：市集清单</span><span class="st">待发布</span></div>
+    <div class="panel-foot"><span>NEXT SLOT <b>09:40</b></span><span>INTERVAL ≥ 2H · RETRY ×3</span></div>
+  </div>
+
+  <div class="chips">
+    <div class="chip"><i></i><b>今日已发 12 篇</b><span>3 个账号</span></div>
+    <div class="chip"><i></i><b>累计曝光 3.8 万</b><span>自动回收</span></div>
+  </div>
+
+  <div class="ticks">
+    <i style="height:18px"></i><i style="height:30px"></i><i style="height:22px"></i><i style="height:44px"></i>
+    <i style="height:34px"></i><i style="height:56px"></i><i style="height:26px"></i><i style="height:40px"></i>
+  </div>
+
+  <div class="meta">
+    <div class="name"><b>方向二 · 数据流</b><span>暗色 launch 片 · 动感字卡与数据呼吸</span></div>
+    <div class="swatches">
+      <div class="sw"><i style="background:#08090a"></i><span>#08090a</span></div>
+      <div class="sw"><i style="background:#17181c"></i><span>#17181c</span></div>
+      <div class="sw"><i style="background:#ff2442"></i><span>#ff2442</span></div>
+      <div class="sw"><i style="background:#ff7a96"></i><span>#ff7a96</span></div>
+      <div class="sw"><i style="background:#e8e8ed"></i><span>#e8e8ed</span></div>
+    </div>
+    <div class="ref"><span>参照</span><b>Linear「The Linear Look」× Vercel Ship</b></div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>应声运营 · 一条流水线</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #f5f5f7;
+        --ink: #1d1d1f;
+        --sub: #6e6e73;
+        --red: #ff2442;
+        --redtext: #c8152f;
+        --pink: #ff7a96;
+        --pinkl: #ffb3c7;
+        --line: #e8e8ed;
+        --card: #ffffff;
+        --font-display: "Noto Sans SC", sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+      body { font-family: var(--font-display); color: var(--ink); }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+
+      /* ---------- 世界横移层：7 联画布 ---------- */
+      #world { position: absolute; left: 0; top: 0; width: 13440px; height: 1080px; will-change: transform; }
+      .panel { position: absolute; top: 0; width: 1920px; height: 1080px; }
+
+      .copy { position: absolute; left: 110px; top: 292px; width: 700px; }
+      .station-chip { display: inline-flex; align-items: center; gap: 12px; background: var(--card);
+        border: 1px solid var(--line); border-radius: 999px; padding: 10px 26px 10px 20px;
+        font-weight: 700; font-size: 28px; color: var(--ink); box-shadow: 0 8px 22px rgba(29,29,31,.06); }
+      .station-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
+      .copy h2 { margin-top: 30px; font-size: 88px; font-weight: 900; letter-spacing: -0.01em; line-height: 1.18; }
+      .copy p { margin-top: 28px; font-size: 28px; line-height: 1.7; color: var(--sub); width: 660px; }
+      .copy .stat { display: inline-flex; align-items: center; gap: 10px; margin-top: 24px;
+        font-family: var(--font-mono); font-size: 16px; font-weight: 700; letter-spacing: .06em;
+        color: var(--redtext); background: #fff; border: 1px solid #ffd3db; border-radius: 999px;
+        padding: 10px 18px; box-shadow: 0 10px 24px rgba(255,36,66,.08); }
+
+      .zone { position: absolute; left: 880px; top: 190px; width: 930px; height: 680px; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+        box-shadow: 0 22px 50px rgba(29,29,31,.09); }
+
+      /* ---------- S01 序 ---------- */
+      .p0-icon { position: absolute; left: 110px; top: 226px; width: 104px; height: 104px; border-radius: 24px;
+        box-shadow: 0 18px 44px rgba(255,36,66,.30); }
+      .p0-title { position: absolute; left: 110px; top: 384px; font-size: 72px; font-weight: 900; line-height: 1.32; letter-spacing: -0.01em; }
+      .p0-sub { position: absolute; left: 110px; top: 646px; font-size: 28px; color: var(--sub); line-height: 1.7; }
+      .toolchip { position: absolute; width: 250px; height: 72px; background: var(--card); border: 1px solid var(--line);
+        border-radius: 14px; display: flex; align-items: center; justify-content: center;
+        font-size: 28px; font-weight: 500; color: var(--ink); box-shadow: 0 14px 30px rgba(29,29,31,.07); }
+      .toolchip .ring { position: absolute; inset: -3px; border: 2px solid var(--red); border-radius: 16px; opacity: 0; }
+      .thread { position: absolute; left: 940px; top: 520px; width: 770px; height: 3px; border-radius: 2px;
+        background: linear-gradient(90deg, var(--pink), var(--red)); transform-origin: left center; }
+
+      /* ---------- 真实界面窗口 ---------- */
+      .appwin { position: absolute; left: 0; top: 16px; width: 930px; border-radius: 18px; overflow: hidden;
+        background: var(--card); border: 1px solid var(--line); box-shadow: 0 34px 80px rgba(29,29,31,.16); }
+      .aw-bar { height: 48px; display: flex; align-items: center; gap: 9px; padding: 0 20px;
+        background: #fbfbfd; border-bottom: 1px solid var(--line); }
+      .aw-bar i { width: 12px; height: 12px; border-radius: 50%; }
+      .aw-bar i:nth-child(1) { background: #ff5f57; }
+      .aw-bar i:nth-child(2) { background: #febc2e; }
+      .aw-bar i:nth-child(3) { background: #28c840; }
+      .aw-bar span { margin-left: 14px; font-family: var(--font-mono); font-size: 15px; font-weight: 700;
+        letter-spacing: .12em; color: var(--sub); }
+      .aw-body { position: relative; height: 523px; overflow: hidden; background: #fff; }
+      .aw-zoom { position: relative; width: 100%; height: 523px; overflow: hidden; will-change: transform; }
+      .aw-zoom iframe { width: 1920px; height: 1080px; border: 0; display: block;
+        transform: scale(0.4844); transform-origin: 0 0; }
+
+      /* ---------- S05 预览 ---------- */
+      .sync { position: absolute; right: 40px; top: 40px; background: var(--ink); color: #fff;
+        font-size: 16px; font-weight: 700; border-radius: 999px; padding: 8px 16px; opacity: 0; }
+
+
+      /* ---------- S07 落版 ---------- */
+      .fin { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; }
+      .fin img.ficon { width: 132px; height: 132px; border-radius: 30px; box-shadow: 0 26px 70px rgba(255,36,66,.35); }
+      .fin .fname { margin-top: 34px; font-size: 58px; font-weight: 900; letter-spacing: .04em; }
+      .fin .fsub { margin-top: 10px; font-family: var(--font-mono); font-size: 19px; letter-spacing: .3em; color: var(--sub); }
+      .fin .s1 { margin-top: 62px; font-size: 50px; font-weight: 900; }
+      .fin .s1 em { font-style: normal; color: var(--red); }
+      .fin .s2 { margin-top: 22px; font-size: 33px; font-weight: 700; color: var(--sub); }
+
+      /* ---------- 屏幕级 Chrome ---------- */
+      .vignette { position: absolute; inset: 0; pointer-events: none; z-index: 3;
+        background: radial-gradient(ellipse at 50% 38%, rgba(255,255,255,.6), rgba(255,255,255,0) 52%, rgba(29,29,31,.04) 100%); }
+      .brand-chip { position: absolute; left: 110px; top: 64px; z-index: 10; display: flex; align-items: center; gap: 14px; }
+      .brand-chip img { width: 42px; height: 42px; border-radius: 10px; box-shadow: 0 8px 22px rgba(255,36,66,.28); }
+      .brand-chip b { font-size: 28px; font-weight: 900; }
+      .brand-chip span { font-family: var(--font-mono); font-size: 15px; letter-spacing: .18em; color: var(--sub); }
+
+      .ticks { position: absolute; right: 130px; top: 76px; z-index: 10; display: flex; gap: 10px; align-items: center; }
+      .ticks i { width: 14px; height: 8px; border-radius: 4px; background: #dcdce1; }
+      .ticks i.on { width: 34px; background: var(--red); }
+
+      .pipeline { position: absolute; left: 0; right: 0; bottom: 0; height: 130px; z-index: 10; }
+      .pline { position: absolute; left: 110px; width: 1700px; top: 62px; height: 3px; border-radius: 2px;
+        background: linear-gradient(90deg, var(--pink), var(--red)); transform-origin: left center; }
+      .pline-glow { position: absolute; left: 110px; width: 1700px; top: 57px; height: 13px; border-radius: 7px;
+        background: linear-gradient(90deg, rgba(255,122,150,.35), rgba(255,36,66,.45)); opacity: 0; }
+      .pnode { position: absolute; top: 22px; margin-left: -74px; z-index: 2; }
+      .pnode .npill { position: relative; display: flex; align-items: center; gap: 12px; background: var(--card);
+        border: 1px solid var(--line); border-radius: 999px; padding: 9px 24px 9px 10px;
+        box-shadow: 0 10px 24px rgba(29,29,31,.08); }
+      .pnode .nnum { position: relative; width: 44px; height: 44px; border-radius: 50%; }
+      .pnode .nnum b { position: absolute; inset: 0; border-radius: 50%; }
+      .pnode .nnum b.off { background: #f0f0f3; }
+      .pnode .nnum b.on { background: var(--red); opacity: 0; }
+      .pnode .nnum span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--ink); }
+      .pnode .nlab { font-size: 28px; font-weight: 700; color: var(--ink); }
+      .pdot { position: absolute; top: 57px; left: 110px; width: 13px; height: 13px; border-radius: 50%;
+        background: var(--red); box-shadow: 0 0 0 4px rgba(255,36,66,.18); z-index: 1; }
+
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="38"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="world" class="clip" data-start="0" data-duration="38" data-track-index="0">
+        <!-- P0 · 序 -->
+        <section class="panel" style="left:0px" id="p0">
+          <img class="p0-icon" src="assets/icon.png" alt="" />
+          <h1 class="p0-title">内容运营的六件事，<br />不该有六个入口。</h1>
+          <p class="p0-sub">它们本该在一条线上。</p>
+          <div class="thread" id="thread"></div>
+          <div class="toolchip" style="left:940px; top:300px;  transform:rotate(-2.5deg)">找选题<i class="ring"></i></div>
+          <div class="toolchip" style="left:1230px; top:236px;  transform:rotate(1.6deg)">写文稿<i class="ring"></i></div>
+          <div class="toolchip" style="left:1500px; top:330px;  transform:rotate(-1.2deg)">做配图<i class="ring"></i></div>
+          <div class="toolchip" style="left:1010px; top:600px;  transform:rotate(2deg)">拼排版<i class="ring"></i></div>
+          <div class="toolchip" style="left:1300px; top:680px;  transform:rotate(-1.6deg)">盯发布<i class="ring"></i></div>
+          <div class="toolchip" style="left:1560px; top:590px;  transform:rotate(2.4deg)">收数据<i class="ring"></i></div>
+        </section>
+
+        <!-- P1 · 选题 -->
+        <section class="panel" style="left:1920px" id="p1">
+          <div class="copy">
+            <div class="station-chip"><i></i>站 1 · 选题</div>
+            <h2>先把题找对</h2>
+            <p>全网热文 5 分钟扫完，热度、摘要、竞争度自动进池，重复题直接拦下。</p>
+            <span class="stat" data-layout-ignore>今日新增 23 个候选 · 自动去重 6 条</span>
+          </div>
+          <div class="zone">
+            <div class="appwin" id="appwin1">
+              <div class="aw-bar"><i></i><i></i><i></i><span data-layout-ignore>ECHOQ OPS · 选题池</span></div>
+              <div class="aw-body"><div class="aw-zoom" data-zoom><iframe id="shotTopics" src="assets/prototype/index.html#view=topics" title="选题池原型" scrolling="no"></iframe></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- P2 · 成稿 -->
+        <section class="panel" style="left:3840px" id="p2">
+          <div class="copy">
+            <div class="station-chip"><i></i>站 2 · 成稿</div>
+            <h2>一段需求出稿</h2>
+            <p>说清场景和受众就行：9 种平台语气任选，夸大承诺实时拦截。</p>
+            <span class="stat" data-layout-ignore>本篇 1,024 字 · 合规检查 3/3 通过</span>
+          </div>
+          <div class="zone">
+            <div class="appwin" id="appwin2">
+              <div class="aw-bar"><i></i><i></i><i></i><span data-layout-ignore>ECHOQ OPS · 创作台</span></div>
+              <div class="aw-body"><div class="aw-zoom" data-zoom><iframe id="shotStudio" src="assets/prototype/index.html#view=studio" title="创作台原型" scrolling="no"></iframe></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- P3 · 配图 -->
+        <section class="panel" style="left:5760px" id="p3">
+          <div class="copy">
+            <div class="station-chip"><i></i>站 3 · 配图</div>
+            <h2>封面与内页，<br />一次成型</h2>
+            <p>选模板、换配色、套标题，批量出图前自动查撞款。</p>
+            <span class="stat" data-layout-ignore>模板 12 套 · 配色 8 组 · 平均 9 秒 / 张</span>
+          </div>
+          <div class="zone">
+            <div class="appwin" id="appwin3">
+              <div class="aw-bar"><i></i><i></i><i></i><span data-layout-ignore>ECHOQ OPS · 内容库</span></div>
+              <div class="aw-body"><div class="aw-zoom" data-zoom><iframe id="shotLibrary" src="assets/prototype/index.html#view=library" title="内容库原型" scrolling="no"></iframe></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- P4 · 预览 -->
+        <section class="panel" style="left:7680px" id="p4">
+          <div class="copy">
+            <div class="station-chip"><i></i>站 4 · 预览</div>
+            <h2>像真机一样看</h2>
+            <p>小红书、抖音、公众号三端同屏，改一个字，三端即时刷新。</p>
+            <span class="stat" data-layout-ignore>实时同步 · 0 秒延迟</span>
+          </div>
+          <div class="zone">
+            <div class="appwin" id="appwin4">
+              <div class="aw-bar"><i></i><i></i><i></i><span data-layout-ignore>ECHOQ OPS · 三端预览</span></div>
+              <div class="aw-body"><div class="aw-zoom" data-zoom><iframe id="shotPreview" src="assets/prototype/index.html#view=studio&mode=switch" title="真机预览原型" scrolling="no"></iframe></div></div>
+            </div>
+            <div class="sync" id="syncChip" data-layout-ignore>实时同步</div>
+          </div>
+        </section>
+
+        <!-- P5 · 发布 -->
+        <section class="panel" style="left:9600px" id="p5">
+          <div class="copy">
+            <div class="station-chip"><i></i>站 5 · 发布</div>
+            <h2>排队，然后收数</h2>
+            <p>9 个账号错峰轮发，失败自动退避重试，数据回流看板。</p>
+            <span class="stat" data-layout-ignore>今日已发 12 篇 · 成功率 98%</span>
+          </div>
+          <div class="zone">
+            <div class="appwin" id="appwin5">
+              <div class="aw-bar"><i></i><i></i><i></i><span data-layout-ignore>ECHOQ OPS · 发布队列</span></div>
+              <div class="aw-body"><div class="aw-zoom" data-zoom><iframe id="shotQueue" src="assets/prototype/index.html#view=queue" title="发布队列原型" scrolling="no"></iframe></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- P6 · 落版 -->
+        <section class="panel" style="left:11520px" id="p6">
+          <div class="fin">
+            <img class="ficon" src="assets/icon.png" alt="" />
+            <div class="fname">应声运营</div>
+            <div class="fsub" data-layout-ignore>ECHOQ OPS</div>
+            <div class="s1">把内容运营，做成一条<em>流水线</em>。</div>
+            <div class="s2">把时间，留给重要的事。</div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 屏幕级 Chrome -->
+      <div class="vignette clip" data-start="0" data-duration="38" data-track-index="1" id="vignette"></div>
+
+      <div class="brand-chip clip" data-start="0" data-duration="38" data-track-index="1" id="brandChip">
+        <img src="assets/icon.png" alt="" /><b>应声运营</b><span data-layout-ignore>ECHOQ OPS</span>
+      </div>
+
+      <div class="ticks clip" data-start="0" data-duration="38" data-track-index="1" id="ticks">
+        <i></i><i></i><i></i><i></i><i></i>
+      </div>
+
+      <div class="pipeline clip" data-start="0" data-duration="38" data-track-index="1" id="pipeline">
+        <div class="pline" id="pline"></div>
+        <div class="pline-glow" id="plineGlow"></div>
+        <div class="pnode" style="left:260px"><div class="npill"><div class="nnum"><b class="off"></b><b class="on"></b><span data-layout-ignore>1</span></div><span class="nlab">选题</span></div></div>
+        <div class="pnode" style="left:660px"><div class="npill"><div class="nnum"><b class="off"></b><b class="on"></b><span data-layout-ignore>2</span></div><span class="nlab">成稿</span></div></div>
+        <div class="pnode" style="left:1060px"><div class="npill"><div class="nnum"><b class="off"></b><b class="on"></b><span data-layout-ignore>3</span></div><span class="nlab">配图</span></div></div>
+        <div class="pnode" style="left:1460px"><div class="npill"><div class="nnum"><b class="off"></b><b class="on"></b><span data-layout-ignore>4</span></div><span class="nlab">预览</span></div></div>
+        <div class="pnode" style="left:1810px"><div class="npill"><div class="nnum"><b class="off"></b><b class="on"></b><span data-layout-ignore>5</span></div><span class="nlab">发布</span></div></div>
+        <div class="pdot" id="pdot"></div>
+      </div>
+
+      <audio
+        id="bgm"
+        src="assets/bgm.mp3"
+        data-start="0"
+        data-duration="38"
+        data-track-index="2"
+        data-volume="0.85"
+        data-fade-in="0.6"
+        data-fade-out="1.8"
+      ></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      /* ---------- 初始状态 ---------- */
+      gsap.set("#world", { x: 0 });
+      gsap.set(".p0-sub", { opacity: 0, y: 20 });
+      gsap.set(".toolchip", { opacity: 0, y: 34 });
+      gsap.set("#thread", { scaleX: 0 });
+      gsap.set(".copy", { opacity: 0, y: 30 });
+      gsap.set(".appwin", { opacity: 0, y: 46 });
+      gsap.set("[data-zoom]", { scale: 1 });
+      gsap.set("#syncChip", { opacity: 0, y: -10 });
+      /* 原型 iframe 就绪计数（渲染器等待全部加载完成） */
+      window.__iframesLoaded = 0;
+      document.querySelectorAll(".aw-zoom iframe").forEach(function (f) {
+        f.addEventListener("load", function () { window.__iframesLoaded += 1; });
+      });
+      gsap.set(".fin img.ficon", { opacity: 0, scale: 0.5, y: 18 });
+      gsap.set(".fin .fname", { opacity: 0, y: 16 });
+      gsap.set(".fin .fsub", { opacity: 0, y: 12 });
+      gsap.set(".fin .s1", { opacity: 0, y: 18 });
+      gsap.set(".fin .s2", { opacity: 0, y: 14 });
+      gsap.set("#pline", { scaleX: 0 });
+      gsap.set(".pnode", { opacity: 0, y: 16 });
+      gsap.set(".pnode .nnum b.on", { opacity: 0 });
+      gsap.set(".pnode .nnum span", { scale: 1 });
+      gsap.set("#pdot", { x: 0, opacity: 0 });
+      gsap.set("#plineGlow", { opacity: 0 });
+      gsap.set("#ticks i", { backgroundColor: "#dcdce1", width: 14 });
+
+      /* ---------- S01 序（0–4.6）：首帧即有标题与品牌，冷开场 ---------- */
+      tl.to(".p0-sub", { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 1.3);
+      tl.to(".toolchip", { opacity: 1, y: 0, duration: 0.6, ease: "expo.out", stagger: 0.16 }, 1.0);
+      tl.to("#thread", { scaleX: 1, duration: 0.9, ease: "power2.inOut" }, 2.4);
+      tl.to(".toolchip .ring", { opacity: 1, duration: 0.12, ease: "none", stagger: 0.1 }, 2.55);
+      tl.to("#pdot", { opacity: 1, duration: 0.3, ease: "none" }, 2.8);
+      tl.to(".pnode", { opacity: 1, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.07 }, 3.2);
+
+      /* ---------- 相机（世界横移） ---------- */
+      const TRAVEL = { duration: 1.0, ease: "power3.inOut" };
+      tl.to("#world", { x: -1920, ...TRAVEL }, 4.6);
+      tl.to("#world", { x: -3840, ...TRAVEL }, 10.2);
+      tl.to("#world", { x: -5760, ...TRAVEL }, 15.8);
+      tl.to("#world", { x: -7680, ...TRAVEL }, 21.4);
+      tl.to("#world", { x: -9600, ...TRAVEL }, 27.0);
+      tl.to("#world", { x: -11520, ...TRAVEL }, 32.8);
+
+      /* ---------- 管线光点与节点点亮 ---------- */
+      const dotTo = (t, x) => tl.to("#pdot", { x: x, duration: 1.0, ease: "power3.inOut" }, t);
+      dotTo(4.6, 143); dotTo(10.2, 543); dotTo(15.8, 943); dotTo(21.4, 1343); dotTo(27.0, 1693);
+      const nodeOn = (i, t) => {
+        tl.to(`.pnode:nth-of-type(${i + 2}) .nnum b.on`, { opacity: 1, duration: 0.3, ease: "none" }, t);
+        tl.fromTo(`.pnode:nth-of-type(${i + 2}) .nnum span`, { scale: 0.6 },
+          { scale: 1, duration: 0.45, ease: "back.out(1.7)", immediateRender: false }, t);
+      };
+      /* .pipeline 里前两个 div 是线与辉光，节点从第 3 个 div 开始计数 */
+      nodeOn(1, 5.8); nodeOn(2, 11.4); nodeOn(3, 17.0); nodeOn(4, 22.6); nodeOn(5, 28.2);
+
+      /* ---------- 站点进度刻度 ---------- */
+      const tickOn = (i, t) => {
+        tl.to(`#ticks i:nth-child(${i})`, { backgroundColor: "#ff2442", width: 34, duration: 0.3, ease: "none" }, t);
+        if (i > 1) tl.to(`#ticks i:nth-child(${i - 1})`, { backgroundColor: "#ffb3c1", duration: 0.3, ease: "none" }, t);
+      };
+      tickOn(1, 5.8); tickOn(2, 11.4); tickOn(3, 17.0); tickOn(4, 22.6); tickOn(5, 28.2);
+
+      /* ---------- S02 选题 ---------- */
+      tl.to("#p1 .copy", { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 5.7);
+      tl.to("#p1 .appwin", { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 5.9);
+      tl.to("#p1 .appwin", { y: -7, duration: 1.15, ease: "sine.inOut", yoyo: true, repeat: 3 }, 6.9);
+
+      /* ---------- S03 成稿 ---------- */
+      tl.to("#p2 .copy", { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 11.3);
+      tl.to("#p2 .appwin", { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 11.5);
+      tl.to("#p2 .appwin", { y: -7, duration: 1.15, ease: "sine.inOut", yoyo: true, repeat: 2 }, 12.4);
+
+      /* ---------- S04 配图 ---------- */
+      tl.to("#p3 .copy", { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 16.9);
+      tl.to("#p3 .appwin", { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 17.1);
+      tl.to("#p3 .appwin", { y: -7, duration: 1.15, ease: "sine.inOut", yoyo: true, repeat: 2 }, 18.0);
+
+      /* ---------- S05 预览 ---------- */
+      tl.to("#p4 .copy", { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 22.5);
+      tl.to("#p4 .appwin", { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 22.6);
+      tl.to("#p4 .appwin", { y: -7, duration: 1.15, ease: "sine.inOut", yoyo: true, repeat: 2 }, 23.5);
+      tl.to("#syncChip", { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.7)" }, 24.6);
+      tl.to("#syncChip", { opacity: 0, duration: 0.3, ease: "none" }, 26.2);
+
+      /* ---------- S06 发布（climax） ---------- */
+      tl.to("#p5 .copy", { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 28.1);
+      tl.to("#p5 .appwin", { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 28.2);
+      tl.to("#p5 .appwin", { y: -7, duration: 1.15, ease: "sine.inOut", yoyo: true, repeat: 2 }, 29.3);
+      tl.to("#plineGlow", { opacity: 1, duration: 0.4, ease: "none" }, 28.2);
+      tl.to("#plineGlow", { opacity: 0, duration: 1.0, ease: "none" }, 28.8);
+
+      /* ---------- S07 落版 ---------- */
+      tl.to(".brand-chip", { opacity: 0, duration: 0.4, ease: "none" }, 33.9);
+      tl.to(".fin img.ficon", { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "back.out(1.6)" }, 34.1);
+      tl.to(".fin .fname", { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 34.4);
+      tl.to(".fin .fsub", { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 34.65);
+      tl.to(".fin .s1", { opacity: 1, y: 0, duration: 0.55, ease: "expo.out" }, 34.9);
+      tl.to(".fin .s2", { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 35.6);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

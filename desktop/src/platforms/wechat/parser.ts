@@ -98,7 +98,10 @@ export function avatarFromHtml(html: string): string {
     /class="[^"]*weui-desktop-account__thumb[^"]*"[^>]*src="([^"]+)"/,
     /src="([^"]+)"[^>]*class="[^"]*weui-desktop-account__thumb/,
   ]);
-  const url = raw.replace(/\\\//g, "/").trim();
+  let url = raw.replace(/\\\//g, "/").replace(/&amp;/g, "&").trim();
+  if (!url) return "";
+  // 公众号后台常给协议相对地址（//wx.qlogo.cn/...），补全为 https
+  if (url.startsWith("//")) url = `https:${url}`;
   return /^https?:\/\//i.test(url) ? url : "";
 }
 

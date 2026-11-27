@@ -14,6 +14,7 @@ import { createHash, createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ASSETS_DIR, DATA_DIR, DESIGN_DIR, UPLOAD_DIR } from "../../core/config";
+import { log } from "../../core/log";
 import type { AccountRow } from "../../core/accounts";
 import {
   creatorPermit,
@@ -344,16 +345,22 @@ async function resolveTopics(
     if (!name) continue;
     const result = await creatorTopic(creatorCookie, name, proxy);
     if (!result.success) {
-      throw new XhsPublishError(
-        "platform",
-        `话题「${name}」解析失败：${result.message || "请稍后重试"}`
-      );
+      // 话题只是附加信息：个别热词搜不到时跳过，不能因此让整篇笔记发布失败。
+      if (/登录|失效|频繁|限流|风控/.test(result.message || "")) {
+        throw new XhsPublishError(
+          "platform",
+          `话题「${name}」解析失败：${result.message || "请稍后重试"}`
+        );
+      }
+      log.warn(`小红书话题「${name}」未解析，已跳过：${result.message || "无结果"}`);
+      continue;
     }
     const info = asRecord(result.payload?.data);
     const dtos = Array.isArray(info.topic_info_dtos) ? info.topic_info_dtos : [];
     const first = asRecord(dtos[0]);
     if (!first.id) {
-      throw new XhsPublishError("content", `未找到话题：${name}`);
+      log.warn(`小红书话题「${name}」无匹配结果，已跳过`);
+      continue;
     }
     tags.push({
       id: String(first.id),

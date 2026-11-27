@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>方向一 · 流水线</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; }
+  body { font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+  .board { position:relative; width:1920px; height:1080px; background:linear-gradient(180deg,#fbfbfd 0%,#f0f0f4 100%); }
+  .glow { position:absolute; left:430px; top:-160px; width:1360px; height:760px;
+          background:radial-gradient(closest-side, rgba(255,36,66,.08), rgba(255,36,66,0)); }
+
+  .brand { position:absolute; left:110px; top:72px; display:flex; align-items:center; gap:14px; }
+  .brand img { width:44px; height:44px; border-radius:10px; box-shadow:0 6px 18px rgba(255,36,66,.28); }
+  .brand b { font-size:24px; color:#1d1d1f; letter-spacing:.01em; }
+  .brand span { font-size:18px; color:#86868b; margin-left:2px; }
+
+  .copy { position:absolute; left:110px; top:246px; width:760px; }
+  .copy .eyebrow { display:inline-flex; align-items:center; gap:10px; font-size:22px; color:#ff2442; font-weight:500; margin-bottom:28px; }
+  .copy .eyebrow i { width:10px; height:10px; border-radius:50%; background:#ff2442; }
+  .copy h1 { font-size:84px; line-height:1.26; color:#1d1d1f; font-weight:900; letter-spacing:-0.015em; white-space:nowrap; }
+  .copy h1 em { font-style:normal; color:#ff2442; }
+  .copy p { margin-top:34px; font-size:26px; line-height:1.7; color:#6e6e73; font-weight:400; width:640px; }
+
+  .win { position:absolute; left:872px; top:150px; width:940px; height:596px; background:#fff;
+         border-radius:16px; border:1px solid #e8e8ed; overflow:hidden;
+         box-shadow:0 40px 90px rgba(29,29,31,.16), 0 8px 24px rgba(29,29,31,.06); }
+  .win-bar { height:44px; background:#f6f6f8; border-bottom:1px solid #ececf1; display:flex; align-items:center; padding:0 18px; gap:8px; }
+  .win-bar i { width:11px; height:11px; border-radius:50%; background:#e3e3e8; }
+  .win-bar i:nth-child(1){background:#ff5f57}.win-bar i:nth-child(2){background:#febc2e}.win-bar i:nth-child(3){background:#28c840}
+  .win-bar span { margin-left:12px; font-size:15px; color:#86868b; }
+  .win-body { display:flex; height:552px; }
+  .win-body aside { width:212px; border-right:1px solid #f0f0f3; padding:18px 14px; background:#fbfbfc; }
+  .rail-brand { display:flex; align-items:center; gap:8px; padding:4px 8px 16px; }
+  .rail-brand b { width:30px; height:30px; border-radius:8px; background:#ff2442; color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .rail-brand span { font-weight:700; color:#1d1d1f; font-size:16px; }
+  .rail-label { font-size:12px; color:#a1a1a8; padding:10px 8px 6px; }
+  .rail-item { display:flex; justify-content:space-between; align-items:center; font-size:14px; color:#3a3a3e; padding:8px 10px; border-radius:8px; }
+  .rail-item.on { background:#fff2f4; color:#ff2442; font-weight:700; }
+  .rail-item em { font-style:normal; font-size:12px; color:#a1a1a8; background:#f0f0f3; border-radius:8px; padding:1px 7px; }
+  .rail-item.on em { background:#ffe3e8; color:#ff2442; }
+  .win-main { flex:1; padding:18px 20px; }
+  .main-head { display:flex; justify-content:space-between; align-items:center; }
+  .main-head h4 { font-size:19px; color:#1d1d1f; }
+  .main-head p { font-size:13px; color:#a1a1a8; margin-top:3px; }
+  .avatar { width:34px; height:34px; border-radius:50%; background:#ffe3e8; color:#ff2442; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .stats { display:flex; gap:12px; margin:14px 0; }
+  .stat { flex:1; background:#fbfbfc; border:1px solid #f0f0f3; border-radius:10px; padding:10px 14px; }
+  .stat small { font-size:12px; color:#a1a1a8; display:block; }
+  .stat b { font-size:22px; color:#1d1d1f; }
+  .stat b i { font-style:normal; font-size:12px; color:#a1a1a8; margin-left:3px; }
+  .stat.hot b { color:#ff2442; }
+  .cols { display:flex; gap:12px; }
+  .col { flex:1; min-width:0; }
+  .col h5 { font-size:13px; color:#6e6e73; margin-bottom:8px; display:flex; justify-content:space-between; }
+  .col h5 span { color:#a1a1a8; }
+  .card { background:#fff; border:1px solid #ececf1; border-radius:10px; padding:10px 12px; margin-bottom:8px; box-shadow:0 2px 6px rgba(29,29,31,.04); }
+  .card strong { display:block; font-size:13.5px; color:#1d1d1f; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .meta { display:block; font-size:12px; color:#a1a1a8; margin-top:5px; }
+  .card.hot { border-color:#ffc9d3; background:#fff7f8; }
+  .card.hot .meta { color:#ff2442; }
+
+  .pipe { position:absolute; left:110px; right:110px; top:812px; height:76px; }
+  .pipe .line { position:absolute; left:70px; right:70px; top:24px; height:3px; border-radius:2px;
+                background:linear-gradient(90deg,#ffd3db,#ff7a96,#ff2442); opacity:.9; }
+  .pipe ul { position:relative; display:flex; justify-content:space-between; list-style:none; }
+  .pipe li { display:flex; align-items:center; gap:12px; background:#fff; border:1px solid #e8e8ed; border-radius:999px;
+             padding:11px 26px 11px 14px; box-shadow:0 10px 26px rgba(29,29,31,.08); }
+  .pipe li i { width:26px; height:26px; border-radius:50%; background:#f0f0f3; color:#86868b; font-size:14px; font-style:normal;
+               display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .pipe li span { font-size:21px; font-weight:700; color:#1d1d1f; }
+  .pipe li.on { background:#ff2442; border-color:#ff2442; box-shadow:0 14px 30px rgba(255,36,66,.32); }
+  .pipe li.on i { background:rgba(255,255,255,.22); color:#fff; }
+  .pipe li.on span { color:#fff; }
+
+  .bmeta { position:absolute; left:0; right:0; bottom:0; height:140px; background:#fff; border-top:1px solid #e8e8ed;
+          display:flex; align-items:center; padding:0 110px; gap:56px; }
+  .bmeta .name b { font-size:26px; color:#1d1d1f; display:block; }
+  .bmeta .name span { font-size:18px; color:#86868b; display:block; margin-top:6px; }
+  .swatches { display:flex; gap:22px; margin-left:auto; }
+  .sw { text-align:center; }
+  .sw i { display:block; width:34px; height:34px; border-radius:50%; border:1px solid rgba(0,0,0,.08); margin:0 auto; }
+  .sw span { font-size:14px; color:#86868b; display:block; margin-top:7px; letter-spacing:.02em; }
+  .ref { margin-left:56px; text-align:right; }
+  .ref span { font-size:16px; color:#a1a1a8; display:block; }
+  .ref b { font-size:19px; color:#1d1d1f; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="glow"></div>
+
+  <div class="brand">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAF0ElEQVR4nO3a7U0jSRiF0a7RhgKJQDQT0UQDiUAuXi0S0sia0YJdH2/1Pef3LG5b3KerzR4HAAAAAAAAAAAAAACwk7b6Aiq4PDxdVl8Da7T31+gNRL15Q+erWkgYTv0mDZ5e2kmDcLo3ZfSM1k4Ug9O8EcNntnaCEGz9BoyeKtqmMdjyog2fqtpmIdjqYg2fXbRNQvDj2ITxs5PLJv9vSflK7fJBwo6ngdInAOPnDC6Fb2Ily1T5A4MznQbKnQCMnzO7FLu5lQpAtQ8Hzv57XuI4UukDgaRHguUnAOMn2WXxze9H8puHClbuYFkAjB/W72FJAIwfauxiegCMH+rsY2oAjB9q7WRaAIwf6u1l+Z8BgXWmBMDdH2ruZngAjB/q7mdoAIwfau/IdwAQbFgA3P2h/p6GBMD4YY9deQSAYN0D4O4P4/TeV9cAGD+M13NnHgEgWLcAuPvDPL325gQAwboEwN0f5uuxOycACCYAEOzuADj+wzr37s8JAILdFQB3f1jvnh06AUAwAYBgNwfA8R/quHWPTgAQTAAgmABAsJsC4Pkf6rlll/+MuZQwby9f/7ePz8d23l5+ffnfPj7/HHotdNVu+Y+cAL45+h1j8J3R/40YTNfeX7+1aQFYMfzKIegx/GtCUDYAvgRcPf6RP7fC+Ef+XO7mBFBtoCtOAzMH6jSw9wkg7vl/9t15/uvNvTs7DQz13X16BIBgAlDx2XzW6666GzsFlCEAVb+YG/36q0e4+vX5IAAQTAAq3v3H/9mxxt23ynUEEwAIJgAQTACqHv9HXU+1Y3e16wkjABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggnAtcfn49TX8/j886ik2vWEEQAIJgAQTAAqPwaMuo4qx+4q1xFMACCYAFQ9BYx+/dV339WvzwcBqBiBWa+7aoTGX4YAQLBvB6C9v7YjyexTwPzXm3sKcPcf6rv7vGnMl4eny5Ho7eW83zn85+3l17CfbfglA+ARoMaf5Y4SRo3U+MtyAlh5Gqgy/FGnAcOfziNA9RhUHn2PGBj9UgIAwdqM7wDi/hIAG7hll74EhGACAMEEAILdHADfA0Adt+7RCQCCCQAEuysAHgNgvXt26AQAwe4OgFMArHPv/pwAIJgAQLAuAfAYAPP12J0TAATrFgCnAJin196cACBY1wA4BcB4PXfW/QQgAjBO7315BIBgQwLgFAB77GrYCUAEoP6ePAJAsKEBcAqA2jsafgIQAai7nymPACIANXfjOwAINi0ATgFQby9TTwAiALV2Mv0RQASgzj6WfAcgAlBjF8u+BBQBWL+HpX8FEAE4lu5g+Z8BRYBkbeH4P17/KOTy8HRZfQ2QMPwyJ4CKHwqk/J6XCkC1DwfO/vtd6mKueSTgLFqx4Zc9AezwocFZfo/LXtg1pwF20woPf4sTwG4fJuz2+7rFRV5zGqCqtsnwP211sdeEgCraZsP/tOVF/4kYMFvbdPS/2/4NXBMCRmsnGP6n07yRPxEDemknGv3vTvmm/kYQSB/8tYg3+X+EIVcLGToAAAAAAAAAAAAAcJzJv+iymMgyQpzKAAAAAElFTkSuQmCC" alt="">
+    <b>应声运营</b><span>EchoQ Ops · Windows 桌面端</span>
+  </div>
+
+  <div class="copy">
+    <div class="eyebrow"><i></i>把散落的六件事，接成一条线</div>
+    <h1>把内容运营，<br>做成一条<em>流水线</em>。</h1>
+    <p>选题、成稿、配图、预览、发布、回收——原本散落在六个工具里的活，现在在一个窗口里连着做。</p>
+  </div>
+
+  <div class="win">
+    <div class="win-bar"><i></i><i></i><i></i><span>EchoQ Ops · 127.0.0.1:8710</span></div>
+    <div class="win-body">
+      <aside>
+        <div class="rail-brand"><b>EQ</b><span>Ops</span></div>
+        <div class="rail-label">内容</div>
+        <div class="rail-item on">选题池 <em>18</em></div>
+        <div class="rail-item">草稿箱 <em>6</em></div>
+        <div class="rail-item">配图库</div>
+        <div class="rail-label">发布</div>
+        <div class="rail-item">发布队列 <em>4</em></div>
+        <div class="rail-item">账号矩阵</div>
+        <div class="rail-item">数据回收</div>
+      </aside>
+      <div class="win-main">
+        <div class="main-head">
+          <div><h4>今日内容看板</h4><p>11 月 24 日 · 周一</p></div>
+          <div class="avatar">徐</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><small>待发布</small><b>7<i>篇</i></b></div>
+          <div class="stat hot"><small>今日已发</small><b>12<i>篇</i></b></div>
+          <div class="stat"><small>累计曝光</small><b>3.8<i>万</i></b></div>
+        </div>
+        <div class="cols">
+          <div class="col"><h5>选题池 <span>18</span></h5>
+            <div class="card"><strong>秋冬通勤穿搭，5 套不重样</strong><span class="meta">热度 92 · 穿搭</span></div>
+            <div class="card"><strong>租房改造：300 元搞定氛围感</strong><span class="meta">热度 87 · 家居</span></div>
+          </div>
+          <div class="col"><h5>待发布 <span>7</span></h5>
+            <div class="card hot"><strong>小个子大衣挑选指南</strong><span class="meta">09:40 · @穿搭号</span></div>
+            <div class="card"><strong>咖啡店探店｜城南新店</strong><span class="meta">12:10 · @生活号</span></div>
+          </div>
+          <div class="col"><h5>已发布 <span>12</span></h5>
+            <div class="card"><strong>早八人 10 分钟早餐</strong><span class="meta">曝光 1.2w · 赞 386</span></div>
+            <div class="card"><strong>毛衣起球怎么救</strong><span class="meta">曝光 8600 · 赞 214</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipe">
+    <div class="line"></div>
+    <ul>
+      <li><i>1</i><span>选题</span></li>
+      <li><i>2</i><span>成稿</span></li>
+      <li><i>3</i><span>配图</span></li>
+      <li><i>4</i><span>预览</span></li>
+      <li class="on"><i>5</i><span>发布</span></li>
+    </ul>
+  </div>
+
+  <div class="bmeta">
+    <div class="name"><b>方向一 · 流水线</b><span>亮色产品片 · 一个镜头的精确编舞</span></div>
+    <div class="swatches">
+      <div class="sw"><i style="background:#ff2442"></i><span>#ff2442</span></div>
+      <div class="sw"><i style="background:#ff7a96"></i><span>#ff7a96</span></div>
+      <div class="sw"><i style="background:#f5f5f7"></i><span>#f5f5f7</span></div>
+      <div class="sw"><i style="background:#1d1d1f"></i><span>#1d1d1f</span></div>
+      <div class="sw"><i style="background:#86868b"></i><span>#86868b</span></div>
+    </div>
+    <div class="ref"><span>参照</span><b>Apple 产品影片 × Linear 发布片</b></div>
+  </div>
+</div>
+</body>
+</html>

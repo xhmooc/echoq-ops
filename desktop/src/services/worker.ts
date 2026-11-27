@@ -10,8 +10,9 @@
  * 账号不可用时任务回到 pending/retry 并写 blocked_reason，而不是抛异常。
  */
 import fs from "node:fs";
+import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { now } from "../core/config";
+import { ASSETS_DIR, DESIGN_DIR, UPLOAD_DIR, now } from "../core/config";
 import { execute, getDb, queryAll, queryOne } from "../core/db";
 import { log } from "../core/log";
 import { getIntSetting } from "../core/settings";
@@ -189,7 +190,7 @@ function findNoteId(payload: unknown, depth = 0): string {
   }
   if (!payload || typeof payload !== "object") return "";
   const record = payload as Record<string, unknown>;
-  for (const key of ["remote_note_id", "note_id", "noteId", "aweme_id", "awemeId", "id"]) {
+  for (const key of ["remote_note_id", "note_id", "noteId", "aweme_id", "awemeId", "draft_id", "id"]) {
     const value = String(record[key] || "");
     if (!value) continue;
     if (HEX24.test(value) || (/^\d+$/.test(value) && value.length >= 6)) return value;
@@ -630,6 +631,23 @@ function resolveAccount(
   return pickAccount(platform, countQuota);
 }
 
+/** 草稿里存的是 /assets、/designs、/uploads 这类 Web 路径，校验前映射回本地文件。 */
+function assetFile(src: string): string {
+  const value = String(src || "").trim();
+  if (!value || /^(https?:)?\/\//.test(value) || value.startsWith("data:")) return "";
+  const clean = value.split("?")[0].split("#")[0];
+  if (clean.startsWith("/uploads/")) return path.join(UPLOAD_DIR, path.basename(clean));
+  if (clean.startsWith("/assets/")) {
+    const parts = clean.replace(/^\/+/, "").split("/");
+    return parts.length >= 3 ? path.join(ASSETS_DIR, ...parts.slice(1)) : "";
+  }
+  if (clean.startsWith("/designs/")) {
+    const parts = clean.replace(/^\/+/, "").split("/");
+    return parts.length >= 2 ? path.join(DESIGN_DIR, ...parts.slice(1)) : "";
+  }
+  return clean;
+}
+
 async function executeJob(job: JobLike): Promise<Record<string, unknown>> {
   const draft = draftRow(job.draft_id);
   if (!draft) return fail(job, "草稿已删除", "content", null, { final: true });
@@ -660,8 +678,10 @@ async function executeJob(job: JobLike): Promise<Record<string, unknown>> {
 
   const files = (payload.images as string[]).map(String);
   const missing = files.filter((file) => {
+    const local = assetFile(file);
+    if (!local) return true;
     try {
-      return !fs.statSync(file).isFile();
+      return !fs.statSync(local).isFile();
     } catch {
       return true;
     }
@@ -677,8 +697,9 @@ async function executeJob(job: JobLike): Promise<Record<string, unknown>> {
   }
   if (payload.video) {
     let videoOk = false;
+    const videoFile = assetFile(String(payload.video));
     try {
-      videoOk = fs.statSync(String(payload.video)).isFile();
+      videoOk = Boolean(videoFile) && fs.statSync(videoFile).isFile();
     } catch {
       videoOk = false;
     }

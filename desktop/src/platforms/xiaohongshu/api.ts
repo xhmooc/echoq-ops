@@ -472,6 +472,23 @@ export async function creatorPostNote(
   return doPost(`${EDITH_ORIGIN}${api}`, headers, body, creatorCookie, proxy);
 }
 
+/** POST /api/galaxy/creator/note/delete（删除已发布笔记，创作平台接口）。 */
+export async function creatorDeleteNote(
+  creatorCookie: CookieMap,
+  noteId: string,
+  proxy = ""
+): Promise<XhsHttpResult> {
+  const api = "/api/galaxy/creator/note/delete";
+  const body = JSON.stringify({ note_id: noteId });
+  const headers = await creatorSignedHeaders(creatorCookie, api, body, proxy, {
+    method: "POST",
+    b1Profile: "login",
+    referer: "https://creator.xiaohongshu.com/new/note-manager",
+    secFetchSite: "same-site",
+  });
+  return doPost(`${CREATOR_ORIGIN}${api}`, headers, body, creatorCookie, proxy);
+}
+
 /**
  * 把图片/视频二进制 PUT 到 ROS 上传域名。
  * 上传域名不会收到创作者登录 Cookie，鉴权全部在 authorization 头里。

@@ -19,6 +19,7 @@ import { enqueue, enqueueTargets } from "./queue";
 import { computeNext, KINDS } from "./schedules";
 import { getSetting } from "../core/settings";
 import { ingest, updateTopic } from "./topics";
+import { hotSourceForPlatform, mineHot } from "./topicSources";
 import { runJob } from "./worker";
 
 export const STAGE_LABELS: Record<string, string> = {
@@ -107,8 +108,8 @@ async function runMine(
   config: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   const mode = String(config.mode || "keyword");
-  if (!["keyword", "competitor", "channel", "trending"].includes(mode)) {
-    throw new Error("挖掘方式只支持 keyword / competitor / channel / trending");
+  if (!["keyword", "competitor", "channel", "trending", "hot"].includes(mode)) {
+    throw new Error("挖掘方式只支持 keyword / competitor / channel / trending / hot");
   }
   let keywords = config.keywords || [];
   if (typeof keywords === "string") {
@@ -119,6 +120,11 @@ async function runMine(
       .filter(Boolean);
   }
   const simulated = Boolean(config.simulate);
+  const platform = schedulePlatform(schedule);
+  // 小红书有自己的搜索接口；其它平台没有公开关键词搜索，走外部热榜，
+  // 这样抖音 / 公众号的「找选题→写草稿→发布」也能无人值守跑完。
+  const useHot = mode === "hot" || platform !== "xiaohongshu";
+  const hotSource = String(config.hot_source || hotSourceForPlatform(platform));
   let data: Record<string, unknown>;
   if (simulated) {
     // 演练模式：不调用平台接口，用可控的模拟选题走完后续环节。
@@ -148,6 +154,12 @@ async function runMine(
       }))
     );
     data.simulated = true;
+  } else if (useHot) {
+    data = await mineHot(hotSource, {
+      limit: Number(config.limit || 20),
+      keywords: keywordList(keywords),
+      product: Boolean(config.product),
+    });
   } else if (mode === "keyword" && !keywordList(keywords).length) {
     throw new Error("关键词挖掘需要至少一个关键词；也可以开启「模拟演练」先跑通链路");
   } else {
@@ -164,6 +176,9 @@ async function runMine(
     });
   }
   const minScore = Number(config.min_score || 0);
+  if (useHot && !simulated && !Number(data.inserted || 0) && ((data.errors as string[]) || []).length) {
+    throw new Error(String((data.errors as string[])[0]));
+  }
   let dropped = 0;
   const kept: number[] = [];
   const items = (data.items as Record<string, unknown>[]) || [];
@@ -179,18 +194,76 @@ async function runMine(
   } else {
     for (const item of items) kept.push(Number(item.id));
   }
+  // 「只帮我找选题」可以限定这次最多留几条，避免一次把池子灌太满。
+  const findCount = Math.max(0, Math.min(100, Number(config.find_count || 0)));
+  const selected = findCount > 0 ? kept.slice(0, findCount) : kept;
   const parts = [`新增 ${Number(data.inserted || 0)} 条`, `去重跳过 ${Number(data.skipped || 0)} 条`];
+  if (useHot) parts.unshift(String(data.source_label || "外部热榜"));
   if (simulated) parts.unshift("模拟挖掘");
   if (minScore > 0) parts.push(`低于 ${minScore} 分丢弃 ${dropped} 条`);
+  if (findCount > 0 && kept.length > selected.length) {
+    parts.push(`只保留前 ${selected.length} 条`);
+  }
   return {
     message: parts.join("，"),
     output: {
       inserted: Number(data.inserted || 0),
       skipped: Number(data.skipped || 0),
       dropped,
-      topic_ids: kept,
+      topic_ids: selected,
       errors: ((data.errors as unknown[]) || []).slice(0, 10),
       simulated,
+      source: useHot ? hotSource : "",
+    },
+  };
+}
+
+/** 选题池里按分数取题；池子有货时链路不再重复挖掘。 */
+function poolTopicIds(count: number, minScore = 0): number[] {
+  const rows =
+    minScore > 0
+      ? queryAll<{ id: number }>(
+          "SELECT id FROM topics WHERE status = 'pool' AND score >= ? " +
+            "ORDER BY score DESC, id DESC LIMIT ?",
+          minScore,
+          count
+        )
+      : queryAll<{ id: number }>(
+          "SELECT id FROM topics WHERE status = 'pool' ORDER BY score DESC, id DESC LIMIT ?",
+          count
+        );
+  return rows.map((row) => Number(row.id));
+}
+
+/** 「只帮我找选题」可以顺手把草稿备好，适合先审再发的账号。 */
+async function runMineWithDrafts(
+  schedule: ScheduleRow,
+  config: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const result = await runMine(schedule, config);
+  if (!Boolean(config.auto_draft)) return result;
+  const output = (result.output as Record<string, unknown>) || {};
+  const ids = ((output.topic_ids as unknown[]) || [])
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item) && item > 0);
+  const take = Math.max(1, Math.min(5, Number(config.draft_count || config.from_pool || 1)));
+  const topicIds = ids.slice(0, take);
+  if (!topicIds.length) return result;
+  let drafts = createDraftsFromTopics(topicIds, {
+    accountId: config.account_id ? Number(config.account_id) : null,
+    tone: String(config.tone || ""),
+    variants: 1,
+    platform: schedulePlatform(schedule),
+  });
+  const withCards = config.with_cards === undefined ? true : Boolean(config.with_cards);
+  if (withCards) drafts = await decorateCards(drafts, String(config.card_style || ""), false);
+  return {
+    message: `${result.message}；已生成 ${drafts.length} 篇草稿`,
+    output: {
+      ...output,
+      draft_ids: drafts.map((draft) => Number(draft.id)),
+      with_cards: withCards,
+      auto_draft: true,
     },
   };
 }
@@ -489,28 +562,44 @@ async function runChain(schedule: ScheduleRow, config: Record<string, unknown>) 
   let drafts: Record<string, unknown>[] = [];
   let stage = "mine";
   try {
-    const mineResult = await runMine(schedule, config);
-    const mineOutput = mineResult.output as Record<string, unknown>;
     const count = Math.max(1, Math.min(5, Number(config.from_pool || 1)));
-    topicIds = ((mineOutput.topic_ids as number[]) || []).slice(0, count);
-    if (!topicIds.length) {
-      topicIds = queryAll<{ id: number }>(
-        "SELECT id FROM topics WHERE status = 'pool' ORDER BY score DESC, id DESC LIMIT ?",
-        count
-      ).map((row) => Number(row.id));
+    const minScore = Number(config.min_score || 0);
+    let mineSummary = "";
+    // 先吃选题池：池子里有题就直接用，只有池空时才去外部挖掘，
+    // 避免每次定时都重复抓一批新题把池子灌爆。
+    topicIds = poolTopicIds(count, minScore);
+    if (topicIds.length) {
+      mineSummary = `直接使用选题池 ${topicIds.length} 条（未重新挖掘）`;
+      stages.push({
+        key: "mine",
+        label: STAGE_LABELS.mine,
+        status: "success",
+        summary: mineSummary,
+        topic_ids: topicIds,
+        from_pool: true,
+        inserted: 0,
+        skipped: 0,
+        dropped: 0,
+        simulated: false,
+      });
+    } else {
+      const mineResult = await runMine(schedule, config);
+      const mineOutput = mineResult.output as Record<string, unknown>;
+      topicIds = ((mineOutput.topic_ids as number[]) || []).slice(0, count);
+      if (!topicIds.length) throw new Error("选题池为空，这次也没挖到合适的选题");
+      mineSummary = String(mineResult.message || "已挖掘选题");
+      stages.push({
+        key: "mine",
+        label: STAGE_LABELS.mine,
+        status: "success",
+        summary: mineSummary,
+        topic_ids: topicIds,
+        inserted: mineOutput.inserted || 0,
+        skipped: mineOutput.skipped || 0,
+        dropped: mineOutput.dropped || 0,
+        simulated: mineOutput.simulated || false,
+      });
     }
-    if (!topicIds.length) throw new Error("这次没有挖到选题，选题池也是空的");
-    stages.push({
-      key: "mine",
-      label: STAGE_LABELS.mine,
-      status: "success",
-      summary: mineResult.message,
-      topic_ids: topicIds,
-      inserted: mineOutput.inserted || 0,
-      skipped: mineOutput.skipped || 0,
-      dropped: mineOutput.dropped || 0,
-      simulated: mineOutput.simulated || false,
-    });
 
     stage = "draft";
     const withCards = config.with_cards === undefined ? true : Boolean(config.with_cards);
@@ -548,7 +637,7 @@ async function runChain(schedule: ScheduleRow, config: Record<string, unknown>) 
         draft_ids: draftIds,
       });
       return {
-        message: `${mineResult.message}；生成 ${drafts.length} 篇草稿（未发布）`,
+        message: `${mineSummary}；生成 ${drafts.length} 篇草稿（未发布）`,
         output: { stages, topic_ids: topicIds, draft_ids: draftIds, pending: false },
       };
     }
@@ -571,7 +660,7 @@ async function runChain(schedule: ScheduleRow, config: Record<string, unknown>) 
     });
     return {
       message:
-        `${mineResult.message}；生成 ${drafts.length} 篇草稿；` +
+        `${mineSummary}；生成 ${drafts.length} 篇草稿；` +
         `${publishResult.message || "发布完成"}`,
       status: ["pending", "waiting"].includes(publishStatus) ? "waiting" : publishStatus,
       output: {
@@ -616,7 +705,7 @@ async function executeSchedule(schedule: ScheduleRow): Promise<Record<string, un
     case "publish":
       return runPublish(schedule, config);
     case "mine":
-      return runMine(schedule, config);
+      return runMineWithDrafts(schedule, config);
     case "draft":
       return runDraft(schedule, config);
     case "chain":

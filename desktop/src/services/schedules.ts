@@ -308,6 +308,8 @@ export function quickCreateSchedule(payload: Record<string, unknown>): Record<st
       limit: 30,
       detail_limit: 5,
       min_score: 0,
+      find_count: 10,
+      auto_draft: false,
       product: false,
       account_id: accountId,
     };
@@ -344,7 +346,8 @@ export function quickCreateSchedule(payload: Record<string, unknown>): Record<st
     time_of_day: trigger.time_of_day || "09:00",
     weekdays: trigger.weekdays || [],
     interval_minutes: trigger.interval_minutes || 360,
-    auto: false,
+    // 引导式创建默认仍是「先备好再确认」；用户在向导里勾选全自动后才直接发。
+    auto: payload.auto === undefined ? false : Boolean(payload.auto),
     enabled: true,
     config,
   });

@@ -10,6 +10,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { app } from "electron";
 import { request } from "undici";
 import { DATA_DIR, now } from "../core/config";
 import { decrypt, encrypt } from "../core/fernet";
@@ -17,11 +18,11 @@ import { log } from "../core/log";
 
 type KeyKind = "llm" | "image";
 
-/** 云端服务基地址：与 Python 的 config.CLOUD_BASE_URL 一致，去掉末尾斜杠。 */
-const CLOUD_BASE_URL = (process.env.OPS_CLOUD_BASE_URL || "http://127.0.0.1:8787").replace(
-  /\/+$/,
-  ""
-);
+/** 云端服务基地址：打包版默认线上云端，源码运行时默认本地云服务；可用环境变量覆盖。 */
+const CLOUD_BASE_URL = (
+  process.env.OPS_CLOUD_BASE_URL ||
+  (app.isPackaged ? "https://ops.echoq.cn" : "http://127.0.0.1:8787")
+).replace(/\/+$/, "");
 const STATE_PATH = path.join(DATA_DIR, "cloud_state.json");
 const STATE_TMP_PATH = path.join(DATA_DIR, "cloud_state.json.tmp");
 /** Python 版 TIMEOUT=(5, 20)：连接 5 秒、读取 20 秒。 */

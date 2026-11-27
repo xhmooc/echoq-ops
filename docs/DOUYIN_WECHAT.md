@@ -291,7 +291,7 @@ Windows 默认复用系统 Edge（`channel=msedge`），不需要再下载 Chrom
 ### 抖音发布找不到上传入口/发布按钮
 
 说明创作者中心改版。先人工打开上传页确认按钮文案和 DOM，再更新
-`ops/platforms/douyin.py` 里的 `_file_input()` / `_submit()` 选择器。这类失败
+`desktop/src/platforms/douyin/adapter.ts` 里的 `_file_input()` / `_submit()` 选择器。这类失败
 会归类为 `platform`，不会反复重试浪费账号次数。
 
 ### 抖音上传成功但发布结果未确认
@@ -339,7 +339,7 @@ token，最多等 30 秒；仍然拿不到才判失败，日志里会记录当�
 
 ## 9. 维护边界
 
-- 平台页面/接口变更时只改 `ops/platforms/douyin.py`、`ops/platforms/wechat_mp.py`
+- 平台页面/接口变更时只改 `desktop/src/platforms/douyin/`、`desktop/src/platforms/wechat/`
   和本文件，不改发布队列、数据库和页面骨架；
 - 新增选择器要保留旧选择器作为候选，避免一次改版就完全失效；
 - 不要把「草稿保存成功」当成「已发表」，也不要在没有远端 ID 时伪造 ID；

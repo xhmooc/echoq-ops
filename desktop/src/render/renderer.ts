@@ -45,6 +45,12 @@ function loadElectron(): typeof import("electron") | null {
   return cachedElectron;
 }
 
+/* E2E 冒烟逃生门：ECHOQ_SMOKE=1 时用外部 Edge/CDP 截图替代 BrowserWindow。 */
+let smokeScreenshot: ((html: string, width: number, height: number) => Promise<Buffer>) | null = null;
+export function setSmokeScreenshot(fn: (html: string, width: number, height: number) => Promise<Buffer>): void {
+  smokeScreenshot = fn;
+}
+
 /** 当前进程是否具备图片渲染能力（必须在 Electron 主进程中调用）。 */
 export function isRenderAvailable(): boolean {
   const electron = loadElectron();
@@ -117,9 +123,15 @@ const PROBE_SELECTOR_LIST = [
   ".v-item", ".v-toc .v-row", ".v-side .v-sec", ".v-side .v-page",
   ".v-line", ".v-end .v-big", ".v-end .v-note", ".v-tags .v-tag",
   ".v-foot", ".w-band .w-title", ".w-mark", ".w-sub",
+  // M3-c landscape 居中构图
+  ".l-kicker", ".l-sub",
+  // M3-e 实拍混合图
+  ".cp-kicker", ".cp-title", ".cp-sticker", ".cp-date",
   // M2 手绘引擎（sketch.ts）
   ".sk-kicker", ".sk-title", ".sk-sub", ".sk-sec", ".sk-item",
   ".sk-big", ".sk-note", ".sk-tag", ".sk-foot",
+  // M3 自定义模板（custom.ts）
+  ".cu-text", ".cu-badge", ".cu-chip",
 ].join(",");
 
 const PROBE_SCRIPT = `
@@ -161,6 +173,12 @@ export async function captureHtml(
   height: number,
   probe: boolean = false
 ): Promise<Buffer> {
+  if (smokeScreenshot) {
+    /* 冒烟模式：外部 Edge/CDP 代截图，探针返回空（checkBlocks 侧只记 warning） */
+    const png = await smokeScreenshot(html, width, height);
+    lastBlocks = [];
+    return png;
+  }
   const electron = loadElectron();
   if (!electron) {
     throw new Error(
@@ -249,17 +267,40 @@ export async function captureHtmlWithProbe(
   return { png, blocks: lastBlocks };
 }
 
+/* E2E 冒烟用：探针块置空（smokeScreenshot 分支不会设置 lastBlocks）。 */
+export function smokeProbeBlocks(): LayoutBlock[] {
+  return lastBlocks;
+}
+
+export interface CaptureFramesOptions {
+  width: number;
+  height: number;
+  /** 帧率（fps），与 duration 共同决定帧数。 */
+  fps: number;
+  /** 时长（秒）；总帧数 = round(fps × duration) + 1（含首尾帧）。 */
+  duration: number;
+  /** 每帧回调（index 从 0 起），用于进度上报。 */
+  onFrame?: (index: number, total: number) => void;
+}
+
 /**
- * 逐帧截图（动效管线）：一次加载页面，对每个时间点 t 调用 window.__seek(t)
- * 后等两帧 rAF 再截图——画面是 t 的纯函数，同 t 同像素。
+ * 逐帧截图（动效管线，M3-a 泛化：画幅/帧率/时长可变）：一次加载页面，
+ * 对每个时间点 t = i / fps 调用 window.__seek(t) 后等两帧 rAF 再截图——
+ * 画面是 t 的纯函数，同 t 同像素；禁止读时钟。
  * 页面须实现动效契约（templates.ts 的 MOTION_SCRIPT）。
  */
 export async function captureFrames(
   html: string,
-  width: number,
-  height: number,
-  times: number[]
+  options: CaptureFramesOptions
 ): Promise<Buffer[]> {
+  const width = Math.max(1, Math.round(options.width));
+  const height = Math.max(1, Math.round(options.height));
+  const fps = Math.max(1, Math.round(options.fps));
+  const duration = Math.max(0.1, Number(options.duration) || 6);
+  const total = Math.max(2, Math.round(fps * duration) + 1);
+  const times: number[] = [];
+  for (let i = 0; i < total; i += 1) times.push(i / fps);
+  const onFrame = options.onFrame;
   const electron = loadElectron();
   if (!electron) {
     throw new Error(
@@ -270,8 +311,8 @@ export async function captureFrames(
   if (app && typeof app.isReady === "function" && !app.isReady()) {
     throw new Error("图片渲染失败：Electron 尚未就绪，请稍后重试");
   }
-  const canvasWidth = Math.max(1, Math.round(width));
-  const canvasHeight = Math.max(1, Math.round(height));
+  const canvasWidth = width;
+  const canvasHeight = height;
   return enqueueRender(async () => {
     fs.mkdirSync(TMP_DIR, { recursive: true });
     const htmlFile = path.join(
@@ -295,7 +336,8 @@ export async function captureFrames(
         .catch(() => false);
       if (!seekReady) throw new Error("页面未实现 __seek 动效契约");
       const frames: Buffer[] = [];
-      for (const t of times) {
+      for (let i = 0; i < times.length; i += 1) {
+        const t = times[i];
         await win.webContents
           .executeJavaScript(`window.__seek(${Number(t).toFixed(4)})`, true)
           .catch(() => undefined);
@@ -312,6 +354,13 @@ export async function captureFrames(
         );
         if (image.isEmpty()) throw new Error("截取到的图片为空，请检查模板内容");
         frames.push(image.toPNG());
+        if (onFrame) {
+          try {
+            onFrame(i, times.length);
+          } catch {
+            /* 进度回调异常不影响渲染 */
+          }
+        }
       }
       return frames;
     } finally {
@@ -326,6 +375,98 @@ export async function captureFrames(
 
 let sharedWindow: ElectronBrowserWindow | null = null;
 let loadFailure = "";
+
+export interface ProbedFrame {
+  t: number;
+  png: Buffer;
+  blocks: LayoutBlock[];
+}
+
+/**
+ * 动效首末帧体检（M3-c）：一次加载页面，对每个时间点 __seek(t) 后
+ * 采集「截图 + 文字块盒模型」。若页面实现了 __probeReset（kenburns 等镜头类范式），
+ * 先复位镜头变换再测量，避免把刻意的画面放大误判为文字越界。
+ * 供 checkBlocks 做 越界/重叠 检查，与静态图同标准。
+ */
+export async function captureProbedFrames(
+  html: string,
+  options: { width: number; height: number; times: number[] }
+): Promise<ProbedFrame[]> {
+  const width = Math.max(1, Math.round(options.width));
+  const height = Math.max(1, Math.round(options.height));
+  const times = options.times.map((t) => Math.max(0, Number(t) || 0));
+  const electron = loadElectron();
+  if (!electron) {
+    throw new Error(
+      "当前环境不支持图片渲染：没有检测到 Electron 的 BrowserWindow，请在桌面版主进程中调用"
+    );
+  }
+  const { app, BrowserWindow } = electron;
+  if (app && typeof app.isReady === "function" && !app.isReady()) {
+    throw new Error("图片渲染失败：Electron 尚未就绪，请稍后重试");
+  }
+  return enqueueRender(async () => {
+    fs.mkdirSync(TMP_DIR, { recursive: true });
+    const htmlFile = path.join(
+      TMP_DIR,
+      `probe-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}.html`
+    );
+    fs.writeFileSync(htmlFile, html, "utf8");
+    try {
+      const win = ensureSharedWindow(BrowserWindow, width, height);
+      win.setContentSize(width, height);
+      loadFailure = "";
+      await withTimeout(
+        win.loadURL(pathToFileURL(htmlFile).href),
+        RENDER_TIMEOUT_MS,
+        "图片渲染超时：页面加载超过 30 秒"
+      );
+      await win.webContents.executeJavaScript(WAIT_ASSETS_SCRIPT, true).catch(() => undefined);
+      await delay(WINDOW_READY_DELAY_MS);
+      const seekReady = await win.webContents
+        .executeJavaScript("typeof window.__seek === 'function'", true)
+        .catch(() => false);
+      if (!seekReady) throw new Error("页面未实现 __seek 动效契约");
+      const out: ProbedFrame[] = [];
+      for (const t of times) {
+        await win.webContents
+          .executeJavaScript(`window.__seek(${t.toFixed(4)})`, true)
+          .catch(() => undefined);
+        await win.webContents
+          .executeJavaScript(
+            "if (typeof window.__probeReset === 'function') { window.__probeReset(); } true;",
+            true
+          )
+          .catch(() => undefined);
+        await win.webContents
+          .executeJavaScript(
+            "new Promise(function(r){ requestAnimationFrame(function(){ requestAnimationFrame(r); }); });",
+            true
+          )
+          .catch(() => undefined);
+        const blocks = (await win.webContents
+          .executeJavaScript(PROBE_SCRIPT, true)
+          .catch((error: unknown) => {
+            console.error("[probe] 版式探针执行失败:", error);
+            return [] as LayoutBlock[];
+          })) as LayoutBlock[];
+        const image = await withTimeout(
+          win.webContents.capturePage({ x: 0, y: 0, width, height }),
+          RENDER_TIMEOUT_MS,
+          "图片渲染超时：截图超过 30 秒"
+        );
+        out.push({ t, png: image.toPNG(), blocks: Array.isArray(blocks) ? blocks : [] });
+      }
+      return out;
+    } finally {
+      try {
+        fs.rmSync(htmlFile, { force: true });
+      } catch {
+        /* 临时文件清理失败不影响结果 */
+      }
+    }
+  });
+}
 
 function ensureSharedWindow(
   BrowserWindow: typeof import("electron").BrowserWindow,
@@ -381,7 +522,7 @@ export function disposeRenderer(): void {
 /* --------------------------- 版式体检（M1 1.5） --------------------------- */
 
 const SAFE = { left: 44, right: 44, top: 28, bottom: 18 };
-const LABEL_CLASS_HINTS = ["v-no", "v-kicker", "w-mark", "v-foot", "v-tag", "v-page", "chip", "brand", "stamp", "pageno", "sk-no", "sk-kicker", "sk-foot", "sk-tag"];
+const LABEL_CLASS_HINTS = ["v-no", "v-kicker", "w-mark", "v-foot", "v-tag", "v-page", "chip", "brand", "stamp", "pageno", "sk-no", "sk-kicker", "sk-foot", "sk-tag", "cu-badge", "cu-chip"];
 
 function inside(outer: LayoutBlock, inner: LayoutBlock): boolean {
   return (
@@ -397,18 +538,26 @@ function inside(outer: LayoutBlock, inner: LayoutBlock): boolean {
  * errors 拦截出图（越界/重叠）；warnings 只提示不强拦（字号量级/留白/密度，
  * 对齐 UPGRADE-PLAN「先告警观察一周再切强制」）。
  */
-export function checkBlocks(blocks: LayoutBlock[], width: number, height: number): LayoutCheck {
+export function checkBlocks(
+  blocks: LayoutBlock[],
+  width: number,
+  height: number,
+  platformSafe: { top: number; bottom: number } = { top: 0, bottom: 0 }
+): LayoutCheck {
   const errors: string[] = [];
   const warnings: string[] = [];
+  // 平台安全区（如抖音顶 220 / 底 520）叠加在通用安全边距之上。
+  const safeTop = Math.max(SAFE.top, platformSafe.top);
+  const safeBottom = Math.max(SAFE.bottom, platformSafe.bottom);
   for (const block of blocks) {
     const left = Number(block.x);
     const top = Number(block.y);
     const right = left + Number(block.w);
     const bottom = top + Number(block.h);
-    if (left < SAFE.left - 0.5 || top < SAFE.top - 0.5) {
+    if (left < SAFE.left - 0.5 || top < safeTop - 0.5) {
       errors.push(`「${block.t}」越过左上安全边距 (${left.toFixed(0)},${top.toFixed(0)})`);
     }
-    if (right > width - SAFE.right + 0.5 || bottom > height - SAFE.bottom + 0.5) {
+    if (right > width - SAFE.right + 0.5 || bottom > height - safeBottom + 0.5) {
       errors.push(`「${block.t}」越过右下安全边距 (${right.toFixed(0)},${bottom.toFixed(0)})`);
     }
     const fontSize = Number(block.fs) || 0;

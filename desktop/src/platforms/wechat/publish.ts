@@ -46,7 +46,7 @@ export function validatePayload(payload: PublishPayload): string[] {
   if (!images.length) {
     problems.push("公众号发布需要 1 张封面图");
   } else {
-    const file = images[0];
+    const file = localAssetPath(images[0]) || images[0];
     const suffix = path.extname(file).toLowerCase();
     if (!IMAGE_SUFFIXES.has(suffix)) {
       problems.push(`公众号封面不支持该格式：${suffix || "未知"}`);
@@ -337,7 +337,7 @@ export async function publishDraft(
   let draftId = "";
   try {
     await ensureTokenAsync(client);
-    const cover = await uploadCover(client, images[0]);
+    const cover = await uploadCover(client, localAssetPath(images[0]) || images[0]);
     // 每次都新建草稿：按标题复用旧草稿不会更新正文与封面，会把旧内容发出去。
     draftId = await createDraft(client, payload, cover);
     return {
@@ -369,6 +369,50 @@ export async function publishDraft(
 }
 
 /** 登录态巡检：访问后台首页，能解析出身份即视为有效。 */
+/** 删除公众号草稿（自动流程只写草稿，所以删除目标是草稿箱里的这一篇）。 */
+export async function deleteDraft(
+  session: Record<string, unknown>,
+  draftId: string,
+  proxy = ""
+): Promise<{ ok: boolean; message: string }> {
+  const id = String(draftId || "").trim();
+  if (!id) return { ok: false, message: "缺少公众号草稿 ID，无法删除" };
+  const client = new WeChatClient(session, proxy);
+  try {
+    await ensureTokenAsync(client);
+    const response = await client.postForm(
+      "/cgi-bin/operate_appmsg",
+      {
+        t: "ajax-response",
+        sub: "del",
+        token: client.token,
+        lang: "zh_CN",
+        ajax: "1",
+      },
+      {
+        AppMsgId: id,
+        token: client.token,
+        lang: "zh_CN",
+      }
+    );
+    const payload = responseJson(response, "delete_draft");
+    const base = payload.base_resp as Record<string, unknown> | undefined;
+    const ret = Number(base?.ret ?? payload.ret ?? -1);
+    if (ret === 0) return { ok: true, message: "公众号草稿已删除" };
+    const reason = String(base?.err_msg || payload.err_msg || payload.msg || "").slice(0, 160);
+    return {
+      ok: false,
+      message: reason ? `公众号删除失败：${reason}` : "公众号删除失败，接口可能已改版",
+    };
+  } catch (error) {
+    log.error(`公众号删除草稿 ${id} 失败: ${error instanceof Error ? error.stack : String(error)}`);
+    return {
+      ok: false,
+      message: error instanceof PlatformFailure ? error.message : "公众号删除请求异常",
+    };
+  }
+}
+
 export async function checkSession(
   session: Record<string, unknown>,
   proxy = ""

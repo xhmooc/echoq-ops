@@ -6,6 +6,7 @@
  * 1080×1440 竖版设计，公众号封面额外提供 1080×460 宽幅版式。
  */
 import { escapeHtml } from "../core/contentText";
+import { buildMotionScript } from "./motion-scripts";
 
 const esc = (value: unknown): string => escapeHtml(asText(value));
 
@@ -89,6 +90,10 @@ export interface CardPageContext {
   height: number;
   variant?: number;
   motion?: boolean;
+  /** 动效时长（秒，M3-a 参数化）；缺省 6s 与历史行为一致。 */
+  motionDuration?: number;
+  /** 动效范式 key（M3-b）；缺省 fade-seq 与历史行为一致。 */
+  motionTemplate?: string;
 }
 
 export interface ArtworkContext {
@@ -827,7 +832,7 @@ ${body}
 ${footLine(page, ctx.brand)}
 ${ctx.motion ? MOTION_BAR : ""}
 </main>
-${ctx.motion ? `<script>${MOTION_SCRIPT}</script>` : ""}
+${ctx.motion ? `<script>${MOTION_SCRIPT(ctx.motionDuration ?? 6, ctx.motionTemplate)}</script>` : ""}
 </body></html>`;
 }
 
@@ -844,30 +849,16 @@ const MOTION_BAR = '<div id="motion-bar"></div>';
  * 确定性动效契约：__ready / __recording / __seek(t)。
  * 页面不使用 CSS animation，画面是 t 的纯函数——逐帧截图前调用 __seek(t)
  * 再等两帧 rAF，同 t 同像素（与 huashu-design render-video-seek 同构）。
+ * M3-a 参数化时长；M3-b 范式化（fade-seq/type-in/kenburns/sketch-grow/pop-sticker）。
  */
-const MOTION_SCRIPT = `
-(function(){
-  var page = document.querySelector('.page');
-  window.__recording = false;
-  if (!page) { window.__seek = function(){}; window.__ready = true; return; }
-  var bar = document.getElementById('motion-bar');
-  var sel = '.kicker,.title,.lead,.toc,.section-title,.item,.item-text,.outro,.tag-row,.seal';
-  var els = Array.prototype.filter.call(page.querySelectorAll(sel), function(el){
-    return !el.querySelector(sel);
+const MOTION_SCRIPT = (duration: number, template: string = "fade-seq"): string =>
+  buildMotionScript({
+    template,
+    duration,
+    els: ".kicker,.title,.lead,.toc,.section-title,.item,.item-text,.outro,.tag-row,.seal",
+    title: ".title",
+    badges: ".seal",
   });
-  function seg(t, a, b){ return Math.max(0, Math.min(1, (t - a) / (b - a))); }
-  function ease(u){ return 1 - Math.pow(1 - u, 3); }
-  window.__seek = function(t){
-    for (var i = 0; i < els.length; i++){
-      var u = ease(seg(t, 0.10 + i * 0.26, 0.70 + i * 0.26));
-      els[i].style.opacity = String(u);
-      els[i].style.transform = 'translateY(' + ((1 - u) * 26).toFixed(1) + 'px)';
-    }
-    if (bar) bar.style.width = (Math.min(1, t / 6) * 100).toFixed(2) + '%';
-  };
-  window.__seek(0);
-  window.__ready = true;
-})();`;
 
 /* ------------------------------------------------------------- 插画版式 */
 

@@ -459,8 +459,36 @@ export function confirmJob(jobId: number, published: boolean): Record<string, un
   return serializeJob(getJobRow(jobId));
 }
 
-function settleDraft(draftId: number, stamp: number): void {
-  const remaining = queryOne<{ n: number }>(
+/** 从队列里彻底删除一条任务；正在发布的任务需要先等回执。 */
+export function deleteJob(jobId: number): boolean {
+  const job = getJobRow(jobId);
+  if (job.status === "running") throw new Error("任务正在发布，不能删除，请等待回执");
+  const stamp = now();
+  getDb().transaction(() => {
+    execute("DELETE FROM jobs WHERE id=?", jobId);
+    settleDraft(job.draft_id, stamp);
+  })();
+  return true;
+}
+
+/** 拖拽排期：只改执行时间，不改账号、草稿和重试次数。 */
+export function rescheduleJob(jobId: number, at: number): Record<string, unknown> | null {
+  const job = getJobRow(jobId);
+  if (!["pending", "retry"].includes(job.status)) {
+    throw new Error("只有等待中的任务可以改期");
+  }
+  const stamp = Math.max(now() + 30, Math.trunc(at));
+  execute(
+    "UPDATE jobs SET next_run_at=?, scheduled_at=?, blocked_reason='', blocked_at=0, updated_at=? WHERE id=?",
+    stamp,
+    stamp,
+    now(),
+    jobId
+  );
+  return serializeJob(getJobRow(jobId));
+}
+
+function settleDraft(draftId: number, stamp: number): void {  const remaining = queryOne<{ n: number }>(
     "SELECT COUNT(*) AS n FROM jobs WHERE draft_id=? AND status IN ('pending','retry','running','pending_confirm')",
     draftId
   );

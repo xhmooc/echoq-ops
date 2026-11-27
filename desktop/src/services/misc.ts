@@ -1,6 +1,7 @@
 /** 外围能力：代理、通知、备份列表、设置公开视图。 */
 import fs from "node:fs";
 import path from "node:path";
+import { app } from "electron";
 import { ProxyAgent, fetch } from "undici";
 import { BACKUP_DIR, DATA_DIR, DB_PATH, KEY_PATH, now } from "../core/config";
 import { execute, queryAll, queryOne } from "../core/db";
@@ -384,7 +385,10 @@ export function settingsPublic(): Record<string, unknown> {
       configured: false,
       // Node 版当前只有离线模板，前端据此显示「离线模板」而不是误报「账号不可用」。
       offline_only: true,
-      base_url: `${String(process.env.OPS_CLOUD_BASE_URL || "http://127.0.0.1:8787").replace(/\/+$/, "")}/v1`,
+      base_url: `${String(
+        process.env.OPS_CLOUD_BASE_URL ||
+          (app.isPackaged ? "https://ops.echoq.cn" : "http://127.0.0.1:8787")
+      ).replace(/\/+$/, "")}/v1`,
       model: getSetting("llm_model", "deepseek-chat") || "deepseek-chat",
       timeout_sec: 45,
       logged_in: false,

@@ -1,6 +1,6 @@
 # 数据模型
 
-数据库：SQLite（WAL），默认位置 `%LOCALAPPDATA%\EchoQ-Ops\data\ops.db`。每个线程一个连接，`busy_timeout=10s`，外键开启。建表与迁移在 `ops/db.py::init_db` 的单个事务内完成，失败整体回滚。
+数据库：SQLite（WAL），默认位置 `%LOCALAPPDATA%\EchoQ-Ops\data\ops.db`。连接开启 `busy_timeout=10s` 与外键。完整表结构由旧版数据库带入；Node 主线在 `desktop/src/core/db.ts` 只做增量迁移（补 `avatar` 列、新增 `design_ledger` 与 `custom_templates`），不会新建完整库。
 
 ## 1. 关系
 
@@ -23,7 +23,7 @@ notification_events（站内消息）与 notifications（推送渠道）彼此�
 proxies  1 ──< accounts（按 URL 绑定，不做外键）
 ```
 
-平台不是独立表，而是 `platform` 枚举字段；可用平台以 `ops/platforms/` 注册表为准。
+平台不是独立表，而是 `platform` 枚举字段；可用平台以 `desktop/src/core/platform.ts` 注册表为准。
 
 ## 2. 表结构
 

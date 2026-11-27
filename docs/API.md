@@ -1,6 +1,6 @@
 # 接口文档
 
-服务默认监听 `http://127.0.0.1:8710`，只对本机开放。所有接口返回 JSON，文件类路由（`/`、`/assets/`、`/designs/`、`/uploads/`、`/static/`）除外。
+服务默认监听 `http://127.0.0.1:8711`，只对本机开放。所有接口返回 JSON，文件类路由（`/`、`/assets/`、`/designs/`、`/uploads/`、`/static/`、`/evidence/`）除外。
 
 ## 1. 通用约定
 
@@ -30,10 +30,13 @@
 
 | 状态码 | 含义 |
 | --- | --- |
-| 200 | 成功 |
-| 202 | 已受理，返回后台任务 id（`/api/drafts`、`/api/published/sync`） |
-| 400 | 参数错误、平台未接入、账号与草稿平台不一致等 `ValueError` |
-| 404 | 资源不存在（`KeyError`） |
+| 200 | 成功（Node 版多数接口同步完成后直接返回结果） |
+| 202 | 已受理；部分任务类接口在响应体里带 `status_code: 202`，需用 `GET /api/tasks/{id}` 轮询 |
+| 400 | 参数错误、平台未接入、账号与草稿平台不一致、路径编码不合法 |
+| 403 | 非本机 Host / Origin / Referer |
+| 404 | 资源不存在或接口不存在 |
+| 413 | 请求体或上传文件超过上限 |
+| 415 | 写接口未使用 `application/json`（上传除外） |
 | 500 | 未预期异常；业务异常带可读原因，统一附 `error_id` 供回查 |
 
 ### 通用字段
@@ -41,7 +44,7 @@
 - 时间：除特别说明外均为 **epoch 秒**（整数）。
 - 平台：`xiaohongshu` / `wechat_mp` / `douyin`。未接入平台返回 `platform_ready=false`。
 - 分页：`limit` 默认因接口而异，`offset` 从 0 开始。
-- 鉴权：**当前没有接口鉴权 / CSRF 防护**，安全边界完全依赖「只监听 127.0.0.1」。详见 `docs/REVIEW.md`。
+- 鉴权：没有 Token 鉴权。服务只监听 `127.0.0.1`，并校验 `Host`（防 DNS rebinding）与 `Origin` / `Referer`（防 CSRF）；写接口要求 `application/json`，请求体上限 4MB，上传上限 128MB。详见 [ARCHITECTURE.md](ARCHITECTURE.md) 第 7 节。
 
 ---
 
@@ -52,7 +55,7 @@
 | GET | `/` | — | 单页界面 HTML |
 | GET | `/api/health` | — | `{status:"ok", data_dir, key:{path, exists, outside_data_dir, restricted, warning}}` |
 | GET | `/assets/{draft_dir}/{filename}` | 路径参数 | 图片文件；`..`、反斜杠、越界路径返回 404 |
-| POST | `/api/uploads` | `multipart/form-data`，字段 `files`（可多个） | `{paths:[绝对路径...]}`；仅 png/jpg/jpeg/webp/gif，单张 ≤12MB |
+| POST | `/api/uploads` | `multipart/form-data`，字段 `files`（可多个） | `{paths:[绝对路径...]}`；仅 png/jpg/jpeg/webp/gif，单次总量 ≤128MB |
 | GET | `/api/overview` | — | 首页统计：账号、草稿、队列、今日发布、最近记录；另返回 `needs_action`（`pending_confirm` / `unread_notifications` / `abnormal_notes` / `expired_accounts`）与 `queue`（受阻原因聚合），供首页提醒条使用 |
 | GET | `/api/platforms` | — | `PlatformAdapter.describe()` 列表：规格、可见范围、限额、能力、数据来源 |
 | GET | `/api/published` | 见第 3 节 | 已发布内容，带 `total/limit/offset/meta` |
@@ -189,11 +192,7 @@
 
 ### `POST /api/published/health-check`
 
-```json
-{ "account_id": 0 }
-```
-
-按规则检查已同步作品：发布超 24 小时仍 0 浏览 → `zero_views`；平台返回违规/审核不通过 → `risky`；平台返回删除/下架 → `removed`；累计浏览明显回落 → `risky`。异常会写一条站内通知（30 分钟内去重）。返回 `{checked, counts:{state: n}, message}`。
+当前是简化实现：统计已缓存作品数量并返回 `{checked, message}`；平台侧下架 / 违规检测尚未迁移到 Node 版，不要依赖它判断作品是否异常。
 
 ### `GET /api/published/{id}/metrics`
 
@@ -220,8 +219,9 @@
 
 ### 同步频率与失败提示
 
-- 自动：`PublishedSyncThread` 启动后立即检查一次，之后每 30 分钟检查；账号距上次同步超过 6 小时才拉取，每次只同步一个到期账号。
-- 手动：`POST /api/published/sync` 随时可触发。
+- 只支持手动：`POST /api/published/sync`，支持公众号与小红书；不传 `account_ids` 时同步全部启用账号。
+- 当前**没有** 6 小时自动同步线程；`/api/published` 的 `meta.sync_interval_hours` 只是展示值。
+- `/api/published/sync-all` 保留为兼容入口，固定返回提示，请改用「同步数据」。
 - 失败：写入 `accounts.published_sync_error`，`GET /api/published/accounts` 与列表 `meta.accounts[].sync_error` 都能看到；已缓存内容不删除。
 
 ---
@@ -270,7 +270,7 @@
 
 | 方法 | 路径 | 请求 | 说明 |
 | --- | --- | --- | --- |
-| POST | `/api/copy/generate` | `{brief, topic?, tone?, tags?, product?, use_llm?, platform?}` | 生成文案，不落库；模型失败会返回离线模板，并带 `llm_error/retryable` |
+| POST | `/api/copy/generate` | `{brief, topic?, tone?, tags?, product?, use_llm?, platform?}` | 生成文案，不落库；当前固定返回离线模板（`engine:"offline"`，`llm_error` 为空） |
 | POST | `/api/copy/check` | `{title, desc, topics?, platform?}` | 合规检查；按平台返回 `title_max/desc_max` |
 | POST | `/api/copy/rewrite` | `{text, title?, angle?, tone?, with_cards?, use_llm?, platform?}` | 洗稿 |
 | GET | `/api/drafts` | `status? platform? limit? offset?` | 草稿列表 + 总数 |
@@ -348,23 +348,41 @@
 
 | 方法 | 路径 | 请求 | 说明 |
 | --- | --- | --- | --- |
-| GET | `/api/cards/styles` | — | 12 种 baoyu 预设风格；缺失目录时回退内置清单，不会为空 |
-| GET | `/api/cards/options` | — | `styles/layouts/palettes/presets/backend/paid`；`backend.skill_ready`、`paid.available` 用于诊断 |
-| POST | `/api/drafts/{id}/cards` | `{style?, layout?, palette?}` | 免费模板（baoyu 预设）生成，写回草稿 |
-| POST | `/api/drafts/{id}/paid-cards` | `{style?, layout?, palette?}` | 付费出图，必须配置密钥；返回 `cost` |
-| GET | `/api/design/styles` | — | 8 套独立设计风格；每项带 `wide: true` 与宽幅 `canvas` |
-| POST | `/api/drafts/{id}/design-cards` | `{style?, variant?, limit?, platform?}` | 本地设计卡片，写回草稿 |
+| GET | `/api/cards/styles` | — | 实用信息流风格清单（key / name / group） |
+| GET | `/api/cards/options` | — | `styles/layouts/palettes/presets/backend/paid`；`backend.engine` 为本地渲染 |
+| POST | `/api/drafts/{id}/cards` | `{style?, layout?, palette?, variant?, limit?, platform?}` | 本地模板出图，写回草稿 |
+| POST | `/api/drafts/{id}/paid-cards` | — | 付费出图未开通，固定返回 400 |
+| GET | `/api/design/styles` | — | 设计模板清单（含手绘与自定义模板分组） |
+| POST | `/api/drafts/{id}/design-cards` | `{style?, variant?, limit?, platform?, mode?}` | 本地设计卡片；`mode=candidates` 出 3 套候选 |
+| GET | `/api/design/samples` | `force?` | 风格样张，懒加载落盘缓存 |
+| POST | `/api/drafts/{id}/design-candidate/select` | 渲染参数 | 选定候选并写入外观账本 |
+| GET | `/api/design/ledger` | `account_id?` | 最近选用的风格组合 |
+| POST | `/api/design/plan` | 同渲染参数 | 预排：返回页数与平台张数上限 |
+| POST | `/api/drafts/{id}/artwork-inline` | 渲染参数 | 生成一张横向插画，返回可插入路径 |
 
-`design-cards` 的画布由平台决定：`wechat_mp` 输出 **1080×460（2.35:1）** 原生宽幅封面，只出封面 1 张；`xiaohongshu` / `douyin` 保持 1080×1440（3:4）。`platform` 缺省取草稿自身平台，未知平台返回 `400`。响应除草稿外附带：
+画布按平台决定：小红书 3:4（1080×1440）、抖音 9:16（1080×1920）、公众号 2.35:1 横幅（1080×460）+ 1:1 方图（1080×1080）。不传 `platform` 时取草稿自身平台，未知平台返回 400。出图前按画布做文字块碰撞与越界检查：`errors` 拦截出图，`warnings` 只提示。
 
-| 字段 | 类型 | 说明 |
+### 7.1 动效与视频
+
+| 方法 | 路径 | 请求 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/motion/bgm` | — | 内置配乐清单（首项 `none` 表示不配乐） |
+| POST | `/api/drafts/{id}/motion` | `{template?, duration?, canvas?, bgm?}` | 封面循环动效：逐帧渲染 → `loop.gif` + `motion.mp4` |
+| POST | `/api/drafts/{id}/composite` | `{image, template?, filter?, canvas?}` | 实拍混合图，单帧写回配图列表 |
+| POST | `/api/drafts/{id}/slideshow` | `{transition?, canvas?, fps?, per?}` | 图组转视频（配图 ≤10 张，字幕 + 配乐） |
+
+动效参数白名单校验，非法值返回 400 中文原因；不传参数时行为与上一版一致。渲染依赖内置 ffmpeg，缺失时接口返回明确提示，不会静默退化为静态图。
+
+### 7.2 自定义模板
+
+| 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `style` | str | 实际使用的模板 key |
-| `template` | `{key, name}` | 模板 key 与中文名，便于前端核对 |
-| `canvas` | `{key, width, height, aspect, label}` | `wide`/`portrait` 与实际出图像素，例如 `{key:"wide", width:1080, height:460, aspect:"2.35:1"}` |
-| `platform` | str | 本次出图使用的平台标识 |
+| GET | `/api/templates` | 模板列表 |
+| POST | `/api/templates` | 新建 |
+| GET / PUT / DELETE | `/api/templates/{id}` | 详情 / 更新 / 删除 |
+| POST | `/api/templates/{id}/duplicate` | 复制 |
 
-出图前会按该画布尺寸做文字块碰撞与越界检查，不通过直接报错，不产生半成品图片。
+模板 schema 存在 `custom_templates.schema`（`pages{cover,content,ending}`），出图时由 `render/custom.ts` 渲染三端画布。自定义模板的版式体检只告警、不拦截。
 
 ---
 
@@ -379,6 +397,8 @@
 | POST | `/api/jobs/{id}/confirm` | `{published: true\|false}` | 人工确认「结果待确认」：已发布记 success 并刷新账号；未发布记 failed，可再重试 |
 | GET | `/api/queue/reasons` | — | 队列受阻原因聚合：`groups[{reason,count,next_at}]`、`waiting`、`pending_confirm` |
 | GET | `/api/records` | `limit?, offset?` | 发布执行记录（含失败、模拟）；响应带 `total`、全局 `success_total` / `failed_total`、`limit`、`offset` |
+| GET | `/api/jobs/export` | `status?, reason?` | 导出队列 CSV |
+| GET | `/api/records/export` | — | 导出发布记录 CSV |
 | GET | `/evidence/{filename}` | — | 发布失败现场：`evidence` 目录下的截图（png/jpg）与 DOM 快照（html 以附件下载）；文件名与后缀白名单校验 |
 
 `POST /api/jobs` 的 400 场景：草稿已发布、草稿平台未接入、账号与草稿平台不一致、草稿已在队列中。
@@ -416,8 +436,8 @@
 | --- | --- | --- | --- |
 | GET | `/api/settings` | — | 公开设置（不返回任何 Key） |
 | PATCH | `/api/settings` | 键值对 | 更新设置 |
-| GET | `/api/worker` | — | 线程状态：发布 / 调度 / 回收 |
-| POST | `/api/worker/tick` | — | 立即跑一次发布队列 tick |
+| GET | `/api/worker` | — | 发布执行器状态：`running`、`last_tick_at`、最近结果与队列计数 |
+| POST | `/api/worker/tick` | `{action?}` | `tick`（默认，跑一轮发布）/ `start` / `stop` / `schedule`（立即检查定时任务） |
 
 ### 10.1 账号与额度（EchoQ-Cloud）
 
@@ -434,8 +454,8 @@
 | GET | `/api/cloud/doctor` | 可选 `?model=` | 云端体检：可达性、登录态、文案 Key、模型白名单、订阅额度逐项返回 `{ok, logged_in, items:[{key,name,ok,detail}]}` |
 | GET | `/api/update` | 可选 `?current=1.0.0` | 客户端版本检查；转发云端 `/api/app/version`（`product=ops`），返回 `{checked,current,update_available,mandatory,latest:{version,notes,published_at,min_supported,download}}`；连不上云端时 `checked=false`，前端静默跳过 |
 
-- 未登录时 `POST /api/copy/generate`、洗稿、批量草稿等入口返回 401「请先登录 EchoQ 账号后再使用 AI 生成」。
-- 订阅到期或额度用完返回 402，页面据提示引导续费；付费配图同理由 `paid.configured` 与 `reason` 体现。
+- Node 主线的文案接口固定走离线模板（`engine: "offline"`），不要求登录，也不会返回 401/402；云端登录与中转 Key 的接口已保留，模型链路尚未接入。
+- 付费配图固定返回 400（`paid.configured=false`），请使用免费模板或手绘出图。
 
 ### 10.2 通知中心
 

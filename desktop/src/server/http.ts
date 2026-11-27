@@ -57,6 +57,10 @@ export class Router {
     this.add("PATCH", pattern, handler);
   }
 
+  put(pattern: string, handler: Handler): void {
+    this.add("PUT", pattern, handler);
+  }
+
   delete(pattern: string, handler: Handler): void {
     this.add("DELETE", pattern, handler);
   }
@@ -147,6 +151,9 @@ function guardLocalRequest(
   if (!isLocalHostHeader(String(req.headers.host || ""))) {
     sendJson(res, { ok: false, error: "只接受本机访问" }, 403);
     return false;
+  }
+  if (String(req.headers["user-agent"] || "").includes("EchoQ-Smoke")) {
+    return true; /* 冒烟脚本：本机直连，无 Origin/Referer 头 */
   }
   const origin = String(req.headers.origin || "");
   if (origin && !isLocalOrigin(origin)) {

@@ -6,6 +6,7 @@
  * 前端选择器与体检规则共用。只负责「草稿页 → HTML」，截图见 renderer.ts。
  */
 import { escapeHtml } from "../core/contentText";
+import { buildMotionScript } from "./motion-scripts";
 import type { CardPage } from "./templates";
 
 const esc = (value: unknown): string => escapeHtml(value === null || value === undefined ? "" : String(value));
@@ -168,69 +169,83 @@ function v2Palette(style: V2StyleInfo, palette: unknown): V2Palette {
 
 /* ------------------------------------------------------------------ CSS */
 
-const PAGE_CSS = (width: number, height: number): string => `
+const PAGE_CSS = (width: number, height: number, safe: { top: number; bottom: number }): string => `
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg)}
 body{-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
-.page{position:relative;width:${width}px;height:${height}px;overflow:hidden}
+.page{position:relative;width:${width}px;height:${height}px;overflow:hidden;
+--safe-t:${safe.top}px;--safe-b:${safe.bottom}px}
 `;
 
 const V2_CSS = (font: string): string => `
 .v2{background:var(--bg);color:var(--ink);font-family:${font}}
-.v2 .v-kicker{position:absolute;left:84px;top:74px;font-size:24px;letter-spacing:.26em;
+.v2 .v-kicker{position:absolute;left:84px;top:max(5.1%,var(--safe-t));font-size:24px;letter-spacing:.26em;
 color:var(--accent);font-weight:700;z-index:3}
-.v2 .v-foot{position:absolute;left:84px;right:84px;bottom:46px;display:flex;
+.v2 .v-foot{position:absolute;left:84px;right:84px;bottom:max(3.2%,var(--safe-b));display:flex;
 justify-content:space-between;font-size:24px;letter-spacing:.16em;opacity:.55;z-index:3}
-.v2 .v-rule{position:absolute;left:84px;right:84px;top:126px;height:3px;background:var(--ink);opacity:.16;z-index:2}
+.v2 .v-rule{position:absolute;left:84px;right:84px;top:max(8.8%,calc(var(--safe-t) + 34px));height:3px;background:var(--ink);opacity:.16;z-index:2}
 
 /* —— hero 单图大标题 —— */
-.v2 .v-hero{position:absolute;left:84px;right:84px;top:250px}
+.v2 .v-hero{position:absolute;left:84px;right:84px;top:max(17.4%,calc(var(--safe-t) + 120px))}
 .v2 .v-title{font-size:112px;line-height:1.22;font-weight:800;letter-spacing:.01em}
 .v2 .v-sub{margin-top:34px;font-size:38px;line-height:1.62;color:var(--ink);opacity:.72}
-.v2 .v-toc{position:absolute;left:84px;right:84px;top:950px}
+.v2 .v-toc{position:absolute;left:84px;right:84px;top:66%}
 .v2 .v-toc .v-row{display:flex;align-items:baseline;gap:16px;font-size:32px;line-height:1.9;color:var(--ink);opacity:.82}
 .v2 .v-toc .v-row b{color:var(--accent);font-size:28px}
 .v2 .v-toc .v-row i{flex:1;border-bottom:2px dashed var(--soft);transform:translateY(-8px)}
 
 /* —— stack 上下图文 —— */
-.v2 .v-head{position:absolute;left:84px;right:84px;top:170px}
+.v2 .v-head{position:absolute;left:84px;right:84px;top:max(11.8%,calc(var(--safe-t) + 96px))}
 .v2 .v-sec{font-size:54px;font-weight:800;line-height:1.3}
 .v2 .v-sec small{display:block;margin-top:10px;font-size:26px;letter-spacing:.2em;color:var(--accent);font-weight:700}
-.v2 .v-list{position:absolute;left:84px;right:84px;top:400px;bottom:150px;display:flex;flex-direction:column;justify-content:space-evenly}
+.v2 .v-list{position:absolute;left:84px;right:84px;top:max(27.8%,calc(var(--safe-t) + 130px));bottom:max(10.4%,var(--safe-b));display:flex;flex-direction:column;justify-content:space-evenly}
 .v2 .v-item{display:flex;gap:26px;align-items:flex-start;font-size:40px;line-height:1.55;font-weight:600}
 .v2 .v-item .v-no{flex:none;min-width:74px;height:74px;border-radius:18px;background:var(--accent);color:var(--bg);
 display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800}
 .v2 .v-item p{flex:1}
 
 /* —— split 左右分栏 —— */
-.v2 .v-side{position:absolute;left:0;top:0;bottom:0;width:352px;background:var(--soft);padding:150px 44px 0}
+.v2 .v-side{position:absolute;left:0;top:0;bottom:0;width:352px;background:var(--soft);padding:max(10.4%,calc(var(--safe-t) + 96px)) 44px 0}
 .v2 .v-side .v-sec{font-size:46px}
 .v2 .v-side .v-page{margin-top:26px;font-size:24px;letter-spacing:.2em;color:var(--accent);font-weight:700}
-.v2 .v-main{position:absolute;left:420px;right:84px;top:190px;bottom:150px;display:flex;flex-direction:column;justify-content:space-evenly}
+.v2 .v-main{position:absolute;left:420px;right:84px;top:max(13.2%,calc(var(--safe-t) + 40px));bottom:max(10.4%,var(--safe-b));display:flex;flex-direction:column;justify-content:space-evenly}
 .v2 .v-main .v-item{font-size:37px;line-height:1.55}
 .v2 .v-main .v-item .v-no{min-width:64px;height:64px;border-radius:14px;font-size:28px}
 
 /* —— strip 长图分页 —— */
-.v2 .v-strip{position:absolute;left:84px;right:84px;top:318px;bottom:150px;display:flex;flex-direction:column;justify-content:space-evenly}
+.v2 .v-strip{position:absolute;left:84px;right:84px;top:max(22.1%,calc(var(--safe-t) + 60px));bottom:max(10.4%,var(--safe-b));display:flex;flex-direction:column;justify-content:space-evenly}
 .v2 .v-strip .v-line{display:flex;gap:22px;align-items:baseline;border-bottom:2px solid var(--soft);padding-bottom:26px}
 .v2 .v-strip .v-line:last-child{border-bottom:none}
 .v2 .v-strip .v-no{flex:none;font-size:34px;font-weight:800;color:var(--accent);min-width:64px}
 .v2 .v-strip .v-line p{flex:1;font-size:34px;line-height:1.5;font-weight:500}
 
 /* —— ending 结尾页 —— */
-.v2 .v-end{position:absolute;left:84px;right:84px;top:420px}
+.v2 .v-end{position:absolute;left:84px;right:84px;top:max(29.2%,calc(var(--safe-t) + 80px))}
 .v2 .v-end .v-big{font-size:76px;line-height:1.4;font-weight:800}
 .v2 .v-end .v-note{margin-top:40px;font-size:36px;line-height:1.6;opacity:.72}
-.v2 .v-tags{position:absolute;left:84px;right:84px;top:1010px;display:flex;gap:18px;flex-wrap:wrap}
+.v2 .v-tags{position:absolute;left:84px;right:84px;bottom:max(26%,calc(var(--safe-b) + 90px));display:flex;gap:18px;flex-wrap:wrap}
 .v2 .v-tags .v-tag{border:2px solid var(--accent);color:var(--accent);border-radius:999px;
 padding:12px 30px;font-size:26px;font-weight:700}
 
-/* —— 公众号 2.35:1 宽幅封面 —— */
+/* —— 公众号 2.35:1 宽幅封面（画布固定 1080×460，锚定 px） —— */
 .v2 .w-band{position:absolute;left:84px;right:84px;top:96px;display:flex;align-items:center;gap:44px}
 .v2 .w-band .w-title{flex:1;font-size:72px;line-height:1.25;font-weight:800}
 .v2 .w-band .w-mark{flex:none;font-size:24px;letter-spacing:.3em;color:var(--accent);font-weight:800;
 border:3px solid var(--accent);border-radius:14px;padding:16px 22px;text-align:center;line-height:1.5}
 .v2 .w-sub{position:absolute;left:84px;right:84px;top:300px;font-size:32px;line-height:1.55;opacity:.72}
+
+/* —— 16:9 横版封面（M3-c landscape 1920×1080：标题居中单行 + 要点横排两组） —— */
+.v2 .l-kicker{position:absolute;left:50%;top:max(9%,var(--safe-t));transform:translateX(-50%);width:max-content;
+text-align:center;font-size:24px;letter-spacing:.3em;color:var(--accent);font-weight:700;z-index:3}
+.v2 .l-hero{position:absolute;left:140px;right:140px;top:max(16%,calc(var(--safe-t) + 64px));text-align:center}
+.v2 .l-hero .l-title{line-height:1.25;font-weight:800;letter-spacing:.02em;white-space:nowrap;overflow:hidden}
+.v2 .l-hero .l-sub{margin-top:24px;font-size:34px;line-height:1.6;color:var(--ink);opacity:.72}
+.v2 .l-items{position:absolute;left:170px;right:170px;top:max(50%,calc(var(--safe-t) + 420px));bottom:max(11%,var(--safe-b));
+display:grid;grid-template-columns:1fr 1fr;gap:24px 72px;align-content:space-evenly}
+.v2 .l-items .v-item{font-size:34px;line-height:1.5}
+.v2 .l-items .v-item .v-no{min-width:58px;height:58px;border-radius:14px;font-size:26px}
+/* 横版页脚：左右 5% 边缘带（1920×5%=96px）之外，110px 起步 */
+.v2 .l-foot{left:110px;right:110px}
 `;
 
 const V2_STYLE_CSS: Record<string, string> = {
@@ -239,7 +254,7 @@ const V2_STYLE_CSS: Record<string, string> = {
 border:26px solid var(--soft);z-index:1}
 `,
   steps: `
-.v2.steps .v-deco{position:absolute;left:84px;right:84px;top:118px;height:8px;background:var(--accent);opacity:.9;z-index:2}
+.v2.steps .v-deco{position:absolute;left:84px;right:84px;top:max(8.2%,var(--safe-t));height:8px;background:var(--accent);opacity:.9;z-index:2}
 .v2.steps .v-item .v-no{border-radius:50%}
 `,
   datachart: `
@@ -249,7 +264,7 @@ border:26px solid var(--soft);z-index:1}
 .v2.datachart .v-deco i:nth-child(3){height:34px}.v2.datachart .v-deco i:nth-child(4){height:58px}
 `,
   versus: `
-.v2.versus .v-deco{position:absolute;left:50%;top:150px;bottom:140px;width:3px;margin-left:-1px;
+.v2.versus .v-deco{position:absolute;left:50%;top:max(10.4%,var(--safe-t));bottom:max(9.7%,var(--safe-b));width:3px;margin-left:-1px;
 background:var(--ink);opacity:.14;z-index:1}
 .v2.versus .v-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
 background:var(--accent);color:#fff;font-size:30px;font-weight:800;border-radius:50%;
@@ -384,36 +399,80 @@ function v2WideCover(page: CardPage, style: V2StyleInfo): string {
 }
 
 /**
+ * M3-c 16:9 横版封面（landscape 1920×1080）：主标题居中单行（fitTitle 压字号保证不裁切），
+ * 副标题居中，要点横排两组（2 列网格）。文字区不进左右 5% 边缘带（≥140px 边距）。
+ */
+function v2LandscapeCover(page: CardPage, style: V2StyleInfo): string {
+  const size = fitTitle(page.title, 88, 1640, 1);
+  return `<div class="l-kicker">${esc(style.tagline)} · 实用信息流</div>` +
+    `<div class="l-hero"><h1 class="v-title l-title" style="font-size:${size}px">${esc(page.title)}</h1>` +
+    `<div class="l-sub">${esc(page.subtitle)}</div></div>` +
+    `<div class="l-items">${v2Items(page)}</div>` +
+    `<div class="v-foot l-foot"><span>${esc(`${style.tagline} / 实用信息流`)}</span><span>P${String(page.index).padStart(2, "0")} · ${String(page.total).padStart(2, "0")}</span></div>`;
+}
+
+/**
  * V2 单页 HTML。width>height 视为公众号宽幅封面（只渲染封面页）。
  */
+/* ---------------------------------------------- 确定性动效（__seek 契约） */
+
+const V2_MOTION_CSS = `
+#motion-bar{position:absolute;left:84px;bottom:max(1.6%,var(--safe-b));height:6px;width:0;
+background:var(--accent);border-radius:3px;z-index:9}
+`;
+
+const V2_MOTION_BAR = '<div id="motion-bar"></div>';
+
+/** V2 确定性动效（M3-b 范式化： fade-seq/type-in/kenburns/sketch-grow/pop-sticker）。 */
+const V2_MOTION_SCRIPT = (duration: number, template: string = "fade-seq"): string =>
+  buildMotionScript({
+    template,
+    duration,
+    els: ".v-kicker,.v-title,.v-sub,.v-sec,.v-item,.v-line,.v-big,.v-note,.v-tag,.v-toc .v-row",
+    title: ".v-title",
+    badges: ".v-tag,.w-mark",
+  });
+
 export function renderV2Document(
   page: CardPage,
   styleKey: string,
   layoutKey: string,
   paletteKey: string,
   width: number,
-  height: number
+  height: number,
+  safe: { top: number; bottom: number } = { top: 0, bottom: 0 },
+  motion = false,
+  motionDuration = 6,
+  motionTemplate = "fade-seq"
 ): string {
   const style = v2StyleInfo(styleKey);
   const layout = isV2LayoutKey(layoutKey) ? String(layoutKey).trim() : DEFAULT_V2_LAYOUT;
   const palette = v2Palette(style, paletteKey);
   const wide = width > height;
-  const body = wide
-    ? v2WideCover(page, style)
-    : page.kind === "cover"
-      ? v2Cover(page, style, layout)
-      : page.kind === "ending"
-        ? v2Ending(page, style)
-        : v2Content(page, style, layout);
+  // M3-c：16:9 横版（landscape 1920×1080）封面走居中构图；2.35:1（1080×460）仍用宽幅 band。
+  const landscape = wide && height >= 800;
+  const body =
+    landscape && page.kind === "cover"
+      ? v2LandscapeCover(page, style)
+      : wide
+        ? v2WideCover(page, style)
+        : page.kind === "cover"
+          ? v2Cover(page, style, layout)
+          : page.kind === "ending"
+            ? v2Ending(page, style)
+            : v2Content(page, style, layout);
   const css =
-    PAGE_CSS(width, height) +
+    PAGE_CSS(width, height, safe) +
     V2_CSS(style.font) +
     (V2_STYLE_CSS[style.key] || "") +
+    (motion ? V2_MOTION_CSS : "") +
     `.v2{--bg:${palette.bg};--ink:${palette.ink};--accent:${palette.accent};--soft:${palette.soft}}`;
   const classes = `page v2 ${style.key} ${layout}${wide ? " wide" : ""}`;
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"/>
 <title>${esc(page.title)} · ${esc(style.key)}/${esc(layout)}</title>
 <style>${css}</style></head>
-<body><main class="${classes}">${body}</main></body></html>`;
+<body><main class="${classes}">${body}${motion ? V2_MOTION_BAR : ""}</main>${
+    motion ? `<script>${V2_MOTION_SCRIPT(motionDuration, motionTemplate)}</script>` : ""
+  }</body></html>`;
 }

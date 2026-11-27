@@ -2,123 +2,107 @@
 
 ## 1. 这是什么
 
-EchoQ-Ops 是本仓库里的「全平台内容运营台」：在原有小红书采集 / 发布能力之上，提供一条完整的内容生产链路——找选题、写草稿、生成配图、入队发布、定时执行、回收已发布内容。
+EchoQ-Ops（应声运营）是一个跑在本机的 Windows 内容运营工作台：选题、写稿、配图、预览、发布、回收在同一个窗口里完成。
 
-产品定位是**全平台运营**，不是「小红书补丁」：
+当前主线是 **Electron + TypeScript**（`desktop/`），旧版 Python 运营台已从仓库移除，仅保留其前端资源 `ops/web/static/` 作为桌面端界面。
 
-- 小红书是第一个完整适配器；
-- 微信公众号、抖音已经落成接入位（规格、数据结构、页面占位、接口约定齐全），接第二个平台是「填实现」，不是改骨架。
+运行形态：
 
-运行形态：本机单进程 aiohttp 服务 + SQLite（WAL）+ 后台线程，默认只监听 `127.0.0.1:8710`，无云端依赖。
+- 单个 Electron 进程，主进程内起一个只监听 `127.0.0.1:8711` 的 HTTP 服务；
+- 渲染进程通过 `http://127.0.0.1:8711/` 加载界面，不启用 Node 集成（`contextIsolation` + `sandbox`，仅暴露 preload 的最小 IPC）；
+- 数据落本机 SQLite（better-sqlite3，WAL）；不与云端强依赖，账号、草稿、配图、发布记录均在本机。
 
 ## 2. 数据流
 
 ```
-选题池 topics
-   │  mine（关键词 / 竞品 / 热榜 / 题库）
+选题 topics
+   │  mine（关键词 / 竞品 / 热榜）
    ▼
 草稿 drafts（platform + content_type）
-   │  create_from_topic / create_manual
-   ├──► 文案：LLM（OpenAI 兼容）→ 失败回落离线模板
-   ├──► 合规：compliance_issues（标题/正文红线）
-   └──► 配图：
-          ├─ 免费模板 designs.py  → 数据目录 designs/
-          │    画布按平台：公众号 1080×460（2.35:1 宽幅封面），其余 1080×1440
-          │    出图前按实际画布做文字块碰撞/越界检查
-          ├─ baoyu preset illustrator.py → 无头 Chromium 截图（Playwright 自带）
-          └─ 付费出图 qwen-image（需密钥）→ 下载 PNG
+   │  手动创建 / 选题生成 / 定时任务生成
+   ├──► 文案：本地离线模板（云端模型尚未接入 Node 主线）
+   ├──► 合规：compliance
+   └──► 配图（全部本机渲染，Electron 隐藏窗口截图）
+          ├─ V2 模板：6 风格 × 4 版式 × 3 调色板 + 样张 + 多候选 + 外观账本
+          ├─ 手绘：5 种媒材，种子可复现
+          ├─ 自定义模板：模板编辑器落库 custom_templates
+          ├─ 动效：5 种范式 / 多画幅 → loop.gif + motion.mp4
+          ├─ 图组视频：配图轮播 + 字幕 + 配乐 → MP4
+          └─ 实拍混合图：照片 + 模板 + 滤镜
    ▼
-发布队列 jobs（draft_id + account_id 唯一）
-   │  enqueue：校验平台就绪、账号同平台、草稿状态
+发布队列 jobs（pending → running → success / failed / pending_confirm）
+   │  账号轮换、日限额、最小间隔、指数退避、风控冷却
    ▼
-发布 worker（线程）
-   │  pick_account：日限额 + 最小间隔 + 抖动 + 轮换
-   │  adapter.publish()：平台实现
+平台适配器
+   ├─ 小红书：HTTP 签名直发（vendor/xhs_utils）
+   ├─ 微信公众号：只写草稿箱
+   └─ 抖音：Electron 隐藏窗口自动化
    ▼
-发布记录 records（执行审计）
-   │  成功写 remote_note_id
-   ▼
-已发布内容 published_notes（平台作品列表缓存）
-   │  PublishedSyncThread 每 6 小时 / 手动同步
-   └─► /api/published：账号、平台、时间筛选，分页
+发布记录 records → 已发布内容 published_notes（手动同步平台列表）
 ```
 
 ## 3. 模块边界
 
-| 文件 / 目录 | 职责 | 不应该做的事 |
+| 目录 | 职责 | 不应该做的事 |
 | --- | --- | --- |
-| `ops/config.py` | 路径、默认参数、环境变量 | 不写业务逻辑 |
-| `ops/db.py` | 表结构、迁移、线程内连接、事务 | 不放业务判断 |
-| `ops/security.py` | Cookie Fernet 加密 | 不接触网络 |
-| `ops/platforms/` | 平台适配器：内容规格、登录态、发布、回收 | 不直接操作 HTTP 路由 |
-| `ops/accounts.py` | 账号 CRUD、巡检、限速、轮换、扫码会话 | 不生成内容 |
-| `ops/topics.py` | 挖掘、评分、去重、入池 | 不发笔记 |
-| `ops/llm.py` | OpenAI 兼容文案模型调用 | 不落库 |
-| `ops/content.py` | 文案生成、合规、草稿 CRUD、平台规格归一 | 不发布 |
-| `ops/designs.py` | 本地免费模板渲染 | 不调付费接口 |
-| `ops/illustrator.py` | baoyu 预设、付费出图、无头截图 | 不管理草稿状态 |
-| `ops/publisher.py` | 队列、重试、错误分类、发布记录 | 不决定选题 |
-| `ops/published.py` | 已发布内容同步与查询 | 不写发布记录 |
-| `ops/scheduler.py` | 定时任务、触发计算、运行记录、链路执行 | 不绕开队列直接发 |
-| `ops/worker.py` | 三条后台线程的启停 | 不承载接口逻辑 |
-| `ops/service.py` | Web / CLI 共用的业务门面 | 不直接返回 HTTP |
-| `ops/web/app.py` | 组装应用：中间件、路由表、静态目录 | 不写业务规则 |
-| `ops/web/routers/` | 按业务域拆分的路由与参数解析 | 不写业务规则 |
-| `ops/web/common.py` | 统一响应体、错误中间件、素材校验 | 不放业务状态 |
-| `ops/selfcheck.py` | 离线自检 | 不依赖真实账号 |
+| `desktop/src/main/` | Electron 生命周期、窗口、单实例、协议拦截、IPC | 不写业务规则 |
+| `desktop/src/core/` | 配置与路径、SQLite、账号、平台注册表、设置、加密、日志、ZIP | 不调平台接口 |
+| `desktop/src/server/` | 本机 HTTP、路由、参数解析、静态资源 | 不放业务状态 |
+| `desktop/src/services/` | 选题、草稿、文案、队列、定时、已发布、备份、通知 | 不直接操作 DOM |
+| `desktop/src/render/` | 模板、手绘、自定义模板、动效、ffmpeg、配乐、截图与版式体检 | 不做业务判断 |
+| `desktop/src/platforms/` | 小红书 / 公众号 / 抖音的登录、发布、回读 | 不碰数据库迁移 |
+| `desktop/src/data/` | 公众号排版主题等静态数据 | 不含运行逻辑 |
+| `desktop/public/` | 前端缺失时的最小兜底页 | 不作为正式界面 |
 
-依赖方向：`web → service → (accounts / topics / content / publisher / scheduler / published) → platforms → vendor.apis`。反向依赖只允许通过参数注入（如 `PublishedService(accounts)`）。
+依赖方向：`main → server → services → (core / platforms / render) → data`。反向依赖只允许通过参数注入。
 
-## 4. 后台线程
+## 4. 后台任务
 
-| 线程 | 周期 | 负责 | 被什么阻塞 |
+| 任务 | 入口 | 周期 | 说明 |
 | --- | --- | --- | --- |
-| `Worker` | 20 秒（可设置） | 发布队列、Cookie 巡检 | 不应被长任务阻塞 |
-| `SchedulerThread` | 30 秒 | 定时任务（挖题 / 写稿 / 链路） | 可长时间运行 |
-| `PublishedSyncThread` | 30 分钟检查一次，账号 6 小时到期 | 已发布内容同步，每次一个账号 | 平台网络慢，但独立线程 |
-
-三线程拆开的目的：一条链路在挖题 / 配图时，发布队列、Cookie 巡检和内容回收仍然照常。
+| 发布队列 | `services/worker.ts#startLoop` | 20 秒（`worker_poll_sec` 可调） | 条件更新领取任务，单轮最多 2 条；启动时回收遗留 `running` |
+| 定时任务 | `services/schedulerEngine.ts#tickSchedules` | 主进程每 30 秒 | 找选题 / 写草稿 / 发布链路；连续失败 3 次自动暂停 |
+| 已发布回读 | `POST /api/published/sync` | 手动触发 | 支持公众号与小红书；当前没有 6 小时自动同步 |
 
 ## 5. 平台适配器
 
-```python
-class PlatformAdapter:
-    key / name / status / content_types / visibility_options
-    default_daily_limit / default_min_interval_sec
-    features / data_sources
-    describe()            # /api/platforms 的唯一数据源
-    validate(payload)     # 标题/正文/素材规格
-    check_session(account)
-    publish(account, payload) -> PublishOutcome
-    fetch_published(account, cursor, limit) -> {ok, items, next_cursor}
-    note_url(remote_note_id)
-```
+| 平台 | key | 登录 | 发布 | 已发布回读 | 评论 |
+| --- | --- | --- | --- | --- | --- |
+| 小红书 | `xiaohongshu` | Cookie / 扫码 | HTTP + 签名 | 支持 | 支持 |
+| 微信公众号 | `wechat_mp` | 扫码 | 只写草稿箱 | 已发表列表 | 精选留言（需探测） |
+| 抖音 | `douyin` | 扫码 | 隐藏窗口自动化 | 支持 | 不支持 |
 
-详细的「接新平台清单」与假设评估见 [PLATFORMS.md](PLATFORMS.md)。
+平台元数据（标题/正文上限、素材数量、可见范围、限流默认值）集中在 `core/platform.ts`，`GET /api/platforms` 是前端唯一数据源。接新平台的做法见 [PLATFORMS.md](PLATFORMS.md)。
 
 ## 6. 数据目录
 
 ```
 %LOCALAPPDATA%\EchoQ-Ops\data\
 ├── ops.db               # SQLite（WAL）
-├── assets/draft-<id>/   # 配图
-├── designs/             # 免费模板产物
+├── assets/draft-<id>/   # 配图产物
+├── designs/             # V2 模板 / 手绘 / 样张
 ├── uploads/             # 用户上传素材
-├── references/          # 免费模板参考图（不入成品）
-├── logs/ops.log         # 10MB 轮转，保留 5 份
+├── evidence/            # 发布失败现场（截图 / DOM）
+├── backups/             # 加密备份
+├── logs/ops.log         # 按大小轮转
 ├── tmp/                 # 渲染中间文件
-└── e2e/                 # 模拟端到端产物
+└── cloud_state.json     # 云端登录票据（未接入时为空）
 ```
 
-源码与安装版读写同一个目录；旧的源码目录 `datas/ops` 会在首次启动时自动合并
-过来（`cloud_state.json` 登录票据除外，避免把开发云端票据带进生产）。
+`OPS_DATA_DIR` / `OPS_USER_DIR` 可覆盖。Cookie 加密密钥默认在数据目录之外（`%LOCALAPPDATA%\EchoQ-Ops\secret.key`，可用 `OPS_KEY_PATH` 覆盖），因此备份数据目录不会带出密钥。
 
-Cookie 加密密钥**不在**数据目录：默认 `%LOCALAPPDATA%\EchoQ-Ops\secret.key`，可用
-`OPS_KEY_PATH` 覆盖。因此备份 / 同步数据目录不会连密钥一起泄露。
+**已知限制**：当前 `core/db.ts` 只做增量迁移，不会新建完整表结构；数据目录里必须已有一份 `ops.db`（旧版升级而来）。全新机器首次启动会在数据库层报「未找到现有数据库」。
 
-## 7. 错误边界
+## 7. 错误边界与安全
 
-- 路由层 `_errors`：`TimeoutError → 504`，`ValueError → 400`，`KeyError → 404`；`RuntimeError` 返回具体原因 + 错误编号，其它 500 只返回错误编号，异常类名与路径只进日志。
-- 发布层：内容错误直接失败；账号失效标记并换号；网络 / 风控指数退避；全失败或等待重试不会显示成功。
-- 同步层：失败写入账号 `published_sync_error`，已缓存内容不受影响。
-- 自检层：`python -m ops selfcheck` 覆盖 46 项离线检查，不联网。
+- 路由层统一捕获：`HttpError` → 对应状态码；业务异常带可读中文原因；未预期异常返回 8 位 `error_id` 并写日志，原始路径与外文只进日志。
+- 进程级 `uncaughtException` / `unhandledRejection` 记录后主动退出，不带伤运行。
+- 只接受本机请求：校验 `Host`（防 DNS rebinding）与 `Origin` / `Referer`（防 CSRF）。
+- 写接口要求 `application/json`（上传走 `multipart/form-data`）；请求体上限 4MB，上传上限 128MB。
+- 静态路由按目录白名单解析并做路径穿越校验；素材只信任数据目录内的文件。
+- 所有窗口拦截非 `http(s)` 协议跳转，自定义协议在 session 层注册处理器，避免系统弹「获取应用」。
+- 本机接口没有 Token 鉴权，安全边界仍依赖「只监听 127.0.0.1」。
+
+## 8. 旧版说明
+
+2026-11-26 的仓库清理移除了 Python 运营台（`ops/*.py`、`ops/web` 后端）、旧 Electron 壳（`electron/`）、旧打包脚本（`build/*.ps1`）与 `vendor/` 下除 `xhs_utils` 外的上游代码。历史设计与 Review 文档保留在 `docs/` 中，仅作参考。

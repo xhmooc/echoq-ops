@@ -1,0 +1,8 @@
+# 构建产物
+dist/
+
+# M3-d 内置 ffmpeg 副本（105MB 二进制，不入库；打包前由 scripts/ensure-ffmpeg.mjs 复制）
+vendor/ffmpeg/
+
+# M3-g 内置配乐（scripts/gen-bgm.mjs 纯代码合成，可重现，不入库）
+vendor/bgm/

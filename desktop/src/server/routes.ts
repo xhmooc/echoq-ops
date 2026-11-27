@@ -47,6 +47,7 @@ import {
   listTopics,
   updateTopic,
 } from "../services/topics";
+import { HOT_SOURCE_LIST, mineHot } from "../services/topicSources";
 import {
   countDrafts,
   createManual,
@@ -61,6 +62,7 @@ import {
   cancelJob,
   confirmJob,
   countJobs,
+  deleteJob,
   enqueue,
   enqueueMany,
   enqueueTargets,
@@ -68,6 +70,7 @@ import {
   listRecords,
   countRecordsSummary,
   queueReasons,
+  rescheduleJob,
   retryJob,
 } from "../services/queue";
 import {
@@ -80,7 +83,15 @@ import {
   quickCreateSchedule,
   updateSchedule,
 } from "../services/schedules";
-import { accountsStatus, listComments, listNotes, metrics, saveComments, sourcesMeta } from "../services/published";
+import {
+  accountsStatus,
+  deletePublishedContent,
+  listComments,
+  listNotes,
+  metrics,
+  saveComments,
+  sourcesMeta,
+} from "../services/published";
 import {
   addChannel,
   addProxy,
@@ -116,9 +127,20 @@ import {
   renderMotion,
   selectDesignCandidate,
 } from "../render/cards";
+import { normalizeMotionOptions, renderComposite, renderSlideshow } from "../render/motion";
+import { listBgm } from "../render/bgm";
 import { CARD_LAYOUTS, CARD_PALETTES, CARD_STYLES, ART_STYLES, isArtStyle } from "../render/templates";
 import { V2_LAYOUTS, V2_PALETTE_KEYS, V2_STYLES } from "../render/v2templates";
 import { SKETCH_STYLES } from "../render/sketch";
+import {
+  createTemplate,
+  deleteTemplate,
+  duplicateTemplate,
+  getTemplate,
+  listTemplates,
+  updateTemplate,
+} from "../services/templates";
+import { ALL_PLATFORMS, platformContentLimit, platformCanvasList } from "../render/kit";
 import { confirmRun, rerunStage, runSchedule, tickSchedules } from "../services/schedulerEngine";
 import { startLoop, stopLoop, tick as workerTick, workerStatus } from "../services/worker";
 import * as cloud from "../services/cloud";
@@ -142,6 +164,21 @@ function pickQrSession(sid: string) {
 
 function ok(data: unknown, extra: Record<string, unknown> = {}): Record<string, unknown> {
   return { ok: true, data, ...extra };
+}
+
+/** 从自定义模板 schema 里取主色（用于选择器色板标识），失败回落主题色。 */
+function extractTemplateColors(schema: unknown): string[] {
+  try {
+    const pages = (schema as { pages?: Record<string, { elements?: Array<{ style?: { bg?: string; color?: string } }> }> }).pages;
+    const cover = pages?.cover?.elements || [];
+    const fills = cover
+      .map((el) => el.style?.bg || el.style?.color || "")
+      .filter((v) => typeof v === "string" && v.startsWith("#"))
+      .slice(0, 3);
+    return fills.length ? fills : ["#e8503a", "#1f2328", "#f3f1ec"];
+  } catch {
+    return ["#e8503a", "#1f2328", "#f3f1ec"];
+  }
 }
 
 function intParam(value: string, label = "ID"): number {
@@ -539,6 +576,45 @@ export function buildRouter(): Router {
     ok(await testProxy(intParam(ctx.params.id, "代理 ID")))
   );
 
+  // ---------------------------------------------------------------- 自定义出图模板（M3）
+  router.get("/api/templates", () => ok(listTemplates()));
+  router.post("/api/templates", (ctx) =>
+    ok(
+      createTemplate({
+        name: String(ctx.body.name || "未命名模板"),
+        schema: ctx.body.schema ?? {},
+        preview: String(ctx.body.preview || ""),
+      })
+    )
+  );
+  router.put("/api/templates/:id", (ctx) => {
+    const id = intParam(ctx.params.id, "模板 ID");
+    const updated = updateTemplate(id, {
+      name: ctx.body.name === undefined ? undefined : String(ctx.body.name),
+      schema: ctx.body.schema,
+      preview: ctx.body.preview === undefined ? undefined : String(ctx.body.preview),
+    });
+    if (!updated) throw new HttpError(404, `模板不存在: ${id}`);
+    return ok(updated);
+  });
+  router.get("/api/templates/:id", (ctx) => {
+    const id = intParam(ctx.params.id, "模板 ID");
+    const tpl = getTemplate(id);
+    if (!tpl) throw new HttpError(404, `模板不存在: ${id}`);
+    return ok(tpl);
+  });
+  router.delete("/api/templates/:id", (ctx) => {
+    const id = intParam(ctx.params.id, "模板 ID");
+    if (!deleteTemplate(id)) throw new HttpError(404, `模板不存在: ${id}`);
+    return ok({ id });
+  });
+  router.post("/api/templates/:id/duplicate", (ctx) => {
+    const id = intParam(ctx.params.id, "模板 ID");
+    const copied = duplicateTemplate(id);
+    if (!copied) throw new HttpError(404, `模板不存在: ${id}`);
+    return ok(copied);
+  });
+
   // ---------------------------------------------------------------- 选题
   router.get("/api/topics", (ctx) => {
     const status = ctx.query.get("status") || "";
@@ -553,7 +629,28 @@ export function buildRouter(): Router {
     return ok(items, { total: countTopics(status, query, source, category, minScore), limit, offset });
   });
   router.get("/api/topics/dedupes", (ctx) => ok(listDedupes(Number(ctx.query.get("limit") || 50))));
+  router.get("/api/topics/hot-sources", () => ok(HOT_SOURCE_LIST));
   router.post("/api/topics/mine", async (ctx) => {
+    const toList = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value.map((item) => String(item).trim()).filter(Boolean);
+      }
+      return String(value || "")
+        .replace(/，/g, ",")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+    // 外部热榜不需要平台账号，全部平台共用一个入口。
+    if (String(ctx.body.mode || "") === "hot") {
+      const source = String(ctx.body.hot_source || ctx.body.source || "douyin_hot");
+      const result = await mineHot(source, {
+        limit: Math.max(1, Math.min(50, Number(ctx.body.limit || 20))),
+        keywords: toList(ctx.body.keywords),
+        product: Boolean(ctx.body.product),
+      });
+      return ok(result);
+    }
     const rawId = ctx.body.account_id;
     let account: AccountRow;
     if (rawId === null || rawId === undefined || rawId === "") {
@@ -575,16 +672,6 @@ export function buildRouter(): Router {
         throw new HttpError(400, "选题挖掘只支持小红书账号");
       }
     }
-    const toList = (value: unknown): string[] => {
-      if (Array.isArray(value)) {
-        return value.map((item) => String(item).trim()).filter(Boolean);
-      }
-      return String(value || "")
-        .replace(/，/g, ",")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    };
     const result = await xhsMine(account, {
       mode: String(ctx.body.mode || "keyword"),
       keywords: toList(ctx.body.keywords),
@@ -838,10 +925,30 @@ export function buildRouter(): Router {
     const account = Number(ctx.query.get("account_id") || 0);
     return ok(ledgerRecent(account));
   });
+  router.get("/api/motion/bgm", async () => {
+    // M3-g 内置配乐清单（供前端动效/图组视频下拉；none 表示不配乐）。
+    return ok({ items: [{ key: "none", name: "无配乐" }, ...listBgm()] });
+  });
+
   router.post("/api/drafts/:id/motion", async (ctx) => {
+    // M3-a 扩参：{template, duration, canvas, bgm}，缺省行为与 0.2.9 一致；非法值 400。
     const id = intParam(ctx.params.id, "草稿 ID");
     draftOr404(id);
-    return ok(await renderMotion(id));
+    return ok(await renderMotion(id, normalizeMotionOptions(ctx.body)));
+  });
+
+  router.post("/api/drafts/:id/composite", async (ctx) => {
+    // M3-e 实拍混合图：{image, template, filter, canvas}，单帧合成进配图列表。
+    const id = intParam(ctx.params.id, "草稿 ID");
+    draftOr404(id);
+    return ok(await renderComposite(id, ctx.body));
+  });
+
+  router.post("/api/drafts/:id/slideshow", async (ctx) => {
+    // M3-f 图组转视频：{transition, canvas, fps, per}，逐帧渲染 + ffmpeg 全尺寸 MP4。
+    const id = intParam(ctx.params.id, "草稿 ID");
+    draftOr404(id);
+    return ok(await renderSlideshow(id, ctx.body));
   });
   router.post("/api/drafts/:id/artwork-inline", async (ctx) => {
     const id = intParam(ctx.params.id, "草稿 ID");
@@ -893,18 +1000,32 @@ export function buildRouter(): Router {
         colors: item.colors,
         temperature: item.temperature,
       })),
+      // M3：用户自定义模板（custom:<id>），渲染走 render/custom.ts。
+      ...listTemplates().map((item) => ({
+        key: `custom:${item.id}`,
+        name: item.name,
+        group: "custom",
+        desc: "我的自定义模板",
+        colors: extractTemplateColors(item.schema),
+      })),
     ])
   );
   router.post("/api/design/plan", (ctx) => {
     const platform = normalizePlatform(ctx.body.platform || "");
     const desc = String(ctx.body.desc || "");
     const art = isArtStyle(ctx.body.style) || String(ctx.body.style || "").startsWith("art");
+    // 三端一次生成估算：小红书 封面+≤2内容+尾页、抖音 封面+≤1内容+尾页、公众号横幅+方图，另加封面动图。
+    const contentPages = Math.max(1, Math.min(18, Math.ceil(desc.length / 180)));
+    const per = (p: string) => (p === "wechat_mp" ? 2 : 1 + Math.min(contentPages, platformContentLimit(p)) + 1);
+    const pages = art
+      ? platformCanvasList(platform).length
+      : ALL_PLATFORMS.reduce((sum, p) => sum + per(p), 0) + 1;
     return ok({
       platform,
       content_type: String(ctx.body.content_type || ""),
       content_type_label: platformLabel(platform),
-      pages: art ? 1 : Math.max(1, Math.min(18, Math.ceil(desc.length / 180))),
-      max_images: platform === "wechat_mp" ? 1 : 18,
+      pages,
+      max_images: 18,
       art,
       canvas: { width: 1080, height: platform === "wechat_mp" ? 460 : 1440 },
     });
@@ -984,6 +1105,18 @@ export function buildRouter(): Router {
     return ok(jobs, { total: jobs.length });
   });
   router.post("/api/jobs/:id/cancel", (ctx) => ok(cancelJob(intParam(ctx.params.id, "任务 ID"))));
+  router.post("/api/jobs/:id/schedule", (ctx) =>
+    ok(
+      rescheduleJob(
+        intParam(ctx.params.id, "任务 ID"),
+        Number(ctx.body.at || ctx.body.scheduled_at || 0)
+      )
+    )
+  );
+  router.delete("/api/jobs/:id", (ctx) => {
+    deleteJob(intParam(ctx.params.id, "任务 ID"));
+    return ok({ deleted: true });
+  });
   router.post("/api/jobs/:id/retry", (ctx) => ok(retryJob(intParam(ctx.params.id, "任务 ID"))));
   router.post("/api/jobs/:id/confirm", (ctx) =>
     ok(confirmJob(intParam(ctx.params.id, "任务 ID"), Boolean(ctx.body.published ?? ctx.body.ok)))
@@ -1168,6 +1301,15 @@ export function buildRouter(): Router {
       message: "已完成列表巡检；平台侧删除/隐藏检测尚未迁移到 Node 版",
     });
   });
+  router.post("/api/published/delete", async (ctx) =>
+    ok(
+      await deletePublishedContent({
+        platform: ctx.body.platform,
+        account_id: ctx.body.account_id,
+        remote_note_id: ctx.body.remote_note_id,
+      })
+    )
+  );
   router.get("/api/published/:id/metrics", (ctx) =>
     ok(metrics(intParam(ctx.params.id, "作品 ID"), Number(ctx.query.get("days") || 30)))
   );

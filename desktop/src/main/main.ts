@@ -195,6 +195,17 @@ if (!locked) {
       }
     });
     // 页面自绘标题栏的窗口按钮。
+    ipcMain.handle("echoq:open-external", async (_event, url: unknown) => {
+      const value = String(url || "");
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+        await shell.openExternal(value);
+        return true;
+      } catch {
+        return false;
+      }
+    });
     ipcMain.on("echoq:win", (event, action: unknown) => {
       const target = BrowserWindow.fromWebContents(event.sender);
       if (!target) return;

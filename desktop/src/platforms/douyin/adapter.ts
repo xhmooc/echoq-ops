@@ -794,7 +794,9 @@ async function startNetworkCapture(dbg: CdpDebugger): Promise<NetworkCapture> {
   };
   dbg.on("message", handler);
   try {
-    await dbg.sendCommand("Network.enable");
+    // Network.enable 在部分账号/网络下会长时间不返回；抓包只用于兜底拿作品 ID，
+    // 不能因此阻塞发布页加载。
+    await withTimeout(dbg.sendCommand("Network.enable"), 8_000, "抖音抓包初始化超时");
   } catch {
     /* 捕获失败不影响发布，作品 ID 会走接口兜底 */
   }
@@ -862,6 +864,15 @@ function withinDataDir(file: string): boolean {
   return target === base || target.startsWith(base + path.sep);
 }
 
+/** 前端草稿里存的是 /assets/... 这类站内路径，发布前映射到真实数据目录。 */
+function localMediaPath(raw: string): string {
+  const value = String(raw || "").trim();
+  if (/^\/(assets|uploads|designs|tmp|evidence)\//.test(value)) {
+    return path.join(DATA_DIR, value.replace(/^\/+/, ""));
+  }
+  return value;
+}
+
 function checkMediaFile(
   raw: string,
   suffixes: Set<string>,
@@ -869,7 +880,7 @@ function checkMediaFile(
   label: string,
   problems: string[]
 ): void {
-  const target = path.resolve(raw);
+  const target = path.resolve(localMediaPath(raw));
   if (!withinDataDir(target)) {
     problems.push(`抖音${label}必须位于应用数据目录内`);
     return;
@@ -924,7 +935,7 @@ function validatePayload(
     }
     for (const item of images.slice(0, 35)) {
       checkMediaFile(item, IMAGE_SUFFIXES, IMAGE_MAX_BYTES, "图片", problems);
-      files.push(path.resolve(item));
+      files.push(path.resolve(localMediaPath(item)));
     }
   } else {
     const source = video || images[0] || "";
@@ -932,7 +943,7 @@ function validatePayload(
       problems.push("抖音视频发布需要 1 个视频文件");
     } else {
       checkMediaFile(source, VIDEO_SUFFIXES, VIDEO_MAX_BYTES, "视频", problems);
-      files.push(path.resolve(source));
+      files.push(path.resolve(localMediaPath(source)));
     }
   }
 
@@ -1042,7 +1053,7 @@ export async function publish(
   try {
     const ses = await prepareDouyinSession(partition, proxy);
     await injectCookies(ses, session);
-    win = createDouyinWindow(partition, false, "抖音 · 发布");
+    win = createDouyinWindow(partition, process.env.OPS_DOUYIN_VISIBLE === "1", "抖音 · 发布");
     const dbg = attachDebugger(win);
     capture = await startNetworkCapture(dbg);
 
@@ -1062,12 +1073,17 @@ export async function publish(
     if (!win.webContents.getURL().includes("creator-micro")) {
       throw new DouyinFailure("auth", "抖音登录态已失效，请重新扫码登录");
     }
+    log.info(`抖音发布：进入 ${win.webContents.getURL()}，待上传 ${media.files.length} 个文件`);
+    // 新功能引导弹层会挡住上传区，先点掉再继续。
+    await clickByText(win, ["知道了", "我知道了"], false).catch(() => false);
+    await sleep(400);
 
     if (media.isImage) {
       await prepareImageText(win, dbg, media.files, payload);
     } else {
       await prepareVideo(win, dbg, media.files[0], payload);
     }
+    log.info("抖音发布：素材已上传，文案已填写");
     await selectVisibility(win, payload);
     // 记录发布前的最近作品，超时兜底时只有出现新 ID 才认定成功，避免把旧作品当成本次结果。
     const baselineId = await latestAwemeId(win);
@@ -1117,6 +1133,69 @@ export async function publish(
   }
 }
 
+/** 删除已发布作品：复用创作者中心登录态，调用作品删除接口。 */
+export async function deletePublished(
+  session: Record<string, unknown>,
+  awemeId: string,
+  proxy = ""
+): Promise<{ ok: boolean; message: string }> {
+  const remoteId = String(awemeId || "").trim();
+  if (!remoteId) return { ok: false, message: "缺少抖音作品 ID，无法删除" };
+  const partition = newDouyinPartition("delete");
+  let win: BrowserWindow | null = null;
+  try {
+    const ses = await prepareDouyinSession(partition, proxy);
+    await injectCookies(ses, session);
+    win = createDouyinWindow(partition, false, "抖音 · 删除作品");
+    await loadDouyinPage(win, CREATOR_MICRO_HOME, 60_000);
+    await sleep(1200);
+    if (await isLoginWall(win)) {
+      throw new DouyinFailure("auth", "抖音登录态已失效，请重新扫码登录");
+    }
+    const script = `(async () => {
+      const form = new FormData();
+      form.append('item_id', ${JSON.stringify(remoteId)});
+      const response = await fetch('https://creator.douyin.com/web/api/media/aweme/delete/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { accept: 'application/json' },
+        body: form
+      });
+      const text = await response.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (error) { data = null; }
+      return { http: response.status, data, text: text.slice(0, 500) };
+    })()`;
+    const result = await execPage<{
+      http: number;
+      data: Record<string, unknown> | null;
+      text: string;
+    }>(win, script);
+    const payload =
+      result && result.data && typeof result.data === "object"
+        ? (result.data as Record<string, unknown>)
+        : {};
+    const nested =
+      payload.data && typeof payload.data === "object"
+        ? (payload.data as Record<string, unknown>)
+        : payload;
+    const code = Number(nested.status_code ?? payload.status_code ?? -1);
+    if (code === 0) return { ok: true, message: "抖音作品已删除" };
+    const reason = String(nested.status_msg || payload.status_msg || result.text || "").slice(0, 160);
+    return {
+      ok: false,
+      message: reason ? `抖音删除失败：${reason}` : `抖音删除失败（HTTP ${result.http}）`,
+    };
+  } catch (error) {
+    const message = error instanceof DouyinFailure ? error.message : "抖音删除请求异常";
+    log.error(`抖音删除作品 ${remoteId} 失败: ${errorText(error)}`);
+    return { ok: false, message };
+  } finally {
+    destroyWindow(win);
+    await cleanupPartition(partition);
+  }
+}
+
 async function fillCaption(win: BrowserWindow, payload: DouyinPublishPayload): Promise<void> {
   const title = String(payload.title || "").trim();
   const desc = String(payload.desc || "").trim();
@@ -1140,6 +1219,7 @@ async function fillCaption(win: BrowserWindow, payload: DouyinPublishPayload): P
 
 async function waitUpload(win: BrowserWindow, timeoutMs = 900_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
+  let loops = 0;
   while (Date.now() < deadline) {
     const text = await readPageText(win);
     if (/上传失败|格式不支持|文件过大/.test(text)) {
@@ -1148,11 +1228,16 @@ async function waitUpload(win: BrowserWindow, timeoutMs = 900_000): Promise<void
         "抖音素材上传失败：文件格式或大小不符合平台要求"
       );
     }
+    if (loops % 10 === 0) {
+      const hint = text.replace(/\s+/g, " ").slice(0, 160);
+      log.info(`抖音发布：等待素材/编辑器 ${loops * 3}s，页面：${hint || "空白"}`);
+    }
     const uploading = text.includes("上传中") || text.includes("处理中");
     if (!uploading) {
       const ready = await execPage<boolean>(win, EDITOR_READY_SCRIPT).catch(() => false);
       if (ready) return;
     }
+    loops += 1;
     await sleep(3000);
   }
   throw new DouyinFailure(

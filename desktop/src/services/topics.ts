@@ -8,9 +8,13 @@ export const SOURCE_LABELS: Record<string, string> = {
   keyword: "关键词",
   competitor: "竞品",
   channel: "频道",
-  trending: "热榜",
+  trending: "小红书热榜",
   library: "题库",
   manual: "手动",
+  douyin_hot: "抖音热榜",
+  zhihu_hot: "知乎热榜",
+  baidu_hot: "百度热搜",
+  toutiao_hot: "头条热榜",
 };
 
 const DIMENSION_META: Array<[string, string, number]> = [
@@ -74,13 +78,31 @@ export function explainScore(detail: Record<string, unknown>, score: number): Re
   return rows;
 }
 
+function sourceUrlOf(row: TopicRow, raw: Record<string, unknown>): string {
+  const direct = String(raw.url || raw.note_url || raw.link || "").trim();
+  if (direct) return direct;
+  if (["keyword", "competitor", "channel"].includes(row.source)) {
+    const noteId = String(raw.note_id || row.source_ref || "").trim();
+    if (/^[0-9a-f]{24}$/i.test(noteId)) {
+      const token = String(raw.xsec_token || "").trim();
+      return `https://www.xiaohongshu.com/explore/${noteId}${
+        token ? `?xsec_token=${encodeURIComponent(token)}&xsec_source=pc_search` : ""
+      }`;
+    }
+  }
+  return "";
+}
+
 export function serializeTopic(row: TopicRow): Record<string, unknown> {
   const detail = jsonField<Record<string, unknown>>(row.score_detail, {});
+  const raw = jsonField<Record<string, unknown>>(row.raw, {});
   return {
     id: row.id,
     source: row.source,
     source_label: SOURCE_LABELS[row.source] || row.source,
     source_ref: row.source_ref,
+    source_url: sourceUrlOf(row, raw),
+    platform: String(raw.platform || ""),
     keyword: row.keyword,
     category: row.category,
     title: row.title,
@@ -92,7 +114,7 @@ export function serializeTopic(row: TopicRow): Record<string, unknown> {
     score_explain: explainScore(detail, Number(row.score || 0)),
     heat: Math.trunc(Number(detail.weighted_interactions || 0)),
     status: row.status,
-    raw: jsonField<Record<string, unknown>>(row.raw, {}),
+    raw,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

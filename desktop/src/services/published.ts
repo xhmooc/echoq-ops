@@ -1,6 +1,10 @@
 /** 已发布内容：平台缓存 + 本地发布记录合并查询，以及指标/评论只读视图。 */
 import { execute, getDb, queryAll, queryOne } from "../core/db";
 import { now } from "../core/config";
+import { decryptSession, getAccount } from "../core/accounts";
+import { deletePublished as deleteXhsNote } from "../platforms/xiaohongshu/adapter";
+import { deletePublished as deleteDouyinNote } from "../platforms/douyin/adapter";
+import { deleteDraft as deleteWechatDraft } from "../platforms/wechat/publish";
 import {
   DEFAULT_PLATFORM,
   listPlatforms,
@@ -347,6 +351,57 @@ export function listNotes(query: PublishedQuery): Record<string, unknown> {
       notice,
     },
   };
+}
+
+export async function deletePublishedContent(input: {
+  platform: unknown;
+  account_id: unknown;
+  remote_note_id: unknown;
+}): Promise<{ ok: boolean; message: string }> {
+  const platform = normalizePlatform(input.platform);
+  const accountId = Math.trunc(Number(input.account_id || 0));
+  const remoteId = String(input.remote_note_id || "").trim();
+  if (!accountId) return { ok: false, message: "缺少账号 ID，无法删除" };
+  if (!remoteId) return { ok: false, message: "缺少平台内容 ID，无法删除" };
+  const account = getAccount(accountId);
+  let result: { ok: boolean; message: string };
+  if (platform === "xiaohongshu") {
+    result = await deleteXhsNote(account, remoteId);
+  } else if (platform === "douyin") {
+    result = await deleteDouyinNote(decryptSession(account), remoteId, account.proxy || "");
+  } else if (platform === "wechat_mp") {
+    result = await deleteWechatDraft(decryptSession(account), remoteId, account.proxy || "");
+  } else {
+    return { ok: false, message: `暂不支持删除 ${platformLabel(platform)} 的内容` };
+  }
+  if (!result.ok) return result;
+  const stamp = now();
+  getDb().transaction(() => {
+    execute(
+      "DELETE FROM published_notes WHERE platform=? AND account_id=? AND remote_note_id=?",
+      platform,
+      accountId,
+      remoteId
+    );
+    execute(
+      "DELETE FROM note_comments WHERE platform=? AND remote_note_id=?",
+      platform,
+      remoteId
+    );
+    execute(
+      "DELETE FROM records WHERE platform=? AND account_id=? AND remote_note_id=?",
+      platform,
+      accountId,
+      remoteId
+    );
+    execute(
+      "UPDATE accounts SET published_synced_at=?, updated_at=? WHERE id=?",
+      stamp,
+      stamp,
+      accountId
+    );
+  })();
+  return result;
 }
 
 function noteRow(noteId: number): Record<string, unknown> {

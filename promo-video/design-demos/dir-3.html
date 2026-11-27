@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>方向三 · 时间归还</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; }
+  body { font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+  .board { position:relative; width:1920px; height:1080px; background:#f4efe4; }
+  .vignette { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 42%, rgba(255,255,255,.5), rgba(255,255,255,0) 55%, rgba(120,100,70,.10) 100%); }
+
+  .brand { position:absolute; left:110px; top:76px; display:flex; align-items:center; gap:14px; }
+  .brand img { width:42px; height:42px; border-radius:10px; }
+  .brand b { font-size:23px; color:#201a16; font-family:'Noto Serif SC',serif; font-weight:900; }
+  .brand span { font-size:17px; color:#8a7f74; }
+
+  .copy { position:absolute; left:110px; top:296px; width:1120px; }
+  .copy .kicker { font-size:22px; color:#8a7f74; margin-bottom:34px; letter-spacing:.06em; }
+  .copy h1 { font-family:'Noto Serif SC','SimSun',serif; font-size:118px; line-height:1.32; color:#201a16; font-weight:900; letter-spacing:.015em; white-space:nowrap; }
+  .copy h1 em { font-style:normal; color:#ff2442; }
+  .copy p { margin-top:38px; font-size:24px; line-height:1.75; color:#6b6156; width:1000px; font-family:'Noto Serif SC',serif; }
+
+  .seal { position:absolute; right:150px; top:96px; width:96px; height:96px; border-radius:20px;
+          box-shadow:0 14px 34px rgba(255,36,66,.3); }
+
+  .timeline { position:absolute; left:110px; top:812px; width:1180px; }
+  .timeline .track { position:absolute; left:6px; right:6px; top:7px; height:2px; background:#d8ccb6; }
+  .timeline ul { position:relative; display:flex; justify-content:space-between; list-style:none; width:100%; }
+  .timeline li { position:relative; width:32%; }
+  .timeline li i { display:block; width:16px; height:16px; border-radius:50%; background:#ff2442; border:3px solid #f4efe4; box-shadow:0 0 0 1px #d8ccb6; }
+  .timeline li .t { display:block; margin-top:16px; font-size:19px; color:#201a16; font-weight:700; }
+  .timeline li .t span { color:#8a7f74; font-weight:400; margin-left:10px; font-size:17px; }
+  .timeline li .gain { display:block; margin-top:10px; font-family:'Noto Serif SC',serif; font-size:23px; color:#6b6156; }
+  .timeline li .gain b { color:#ff2442; font-weight:600; }
+
+  .mini { position:absolute; right:-46px; bottom:-64px; width:520px; height:400px; background:#fffdf8;
+          border:1px solid #e2d7c2; border-radius:18px 0 0 0; box-shadow:-24px -18px 60px rgba(90,70,40,.14);
+          transform:rotate(-2deg); overflow:hidden; }
+  .mini .bar { height:38px; background:#f6f0e2; border-bottom:1px solid #e9dfca; display:flex; align-items:center; padding:0 16px; gap:7px; }
+  .mini .bar i { width:9px; height:9px; border-radius:50%; background:#ddd0b8; }
+  .mini .bar span { margin-left:8px; font-size:13px; color:#a2957f; }
+  .mini .body { display:flex; }
+  .mini .side { width:130px; border-right:1px solid #f0e8d6; padding:12px 10px; background:#fbf7ec; }
+  .mini .side div { height:12px; border-radius:6px; background:#ece2cc; margin-bottom:10px; }
+  .mini .side div.on { background:#ff2442; opacity:.85; }
+  .mini .list { flex:1; padding:14px 16px; }
+  .mini .card { border:1px solid #efe6d2; border-radius:10px; padding:10px 12px; margin-bottom:10px; background:#fff; }
+  .mini .card b { display:block; font-size:14px; color:#3c332a; font-weight:700; }
+  .mini .card span { display:block; font-size:12px; color:#a2957f; margin-top:4px; }
+
+  .meta { position:absolute; left:0; right:0; bottom:0; height:140px; background:#efe8d8; border-top:1px solid #ddd2bc;
+          display:flex; align-items:center; padding:0 110px; gap:56px; }
+  .meta .name b { font-size:26px; color:#201a16; display:block; font-family:'Noto Serif SC',serif; font-weight:900; }
+  .meta .name span { font-size:18px; color:#8a7f74; display:block; margin-top:6px; }
+  .swatches { display:flex; gap:22px; margin-left:auto; }
+  .sw { text-align:center; }
+  .sw i { display:block; width:34px; height:34px; border-radius:50%; border:1px solid rgba(0,0,0,.1); margin:0 auto; }
+  .sw span { font-size:14px; color:#8a7f74; display:block; margin-top:7px; letter-spacing:.02em; }
+  .ref { margin-left:56px; text-align:right; }
+  .ref span { font-size:16px; color:#a2957f; display:block; }
+  .ref b { font-size:19px; color:#201a16; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="vignette"></div>
+
+  <div class="brand">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAF0ElEQVR4nO3a7U0jSRiF0a7RhgKJQDQT0UQDiUAuXi0S0sia0YJdH2/1Pef3LG5b3KerzR4HAAAAAAAAAAAAAACwk7b6Aiq4PDxdVl8Da7T31+gNRL15Q+erWkgYTv0mDZ5e2kmDcLo3ZfSM1k4Ug9O8EcNntnaCEGz9BoyeKtqmMdjyog2fqtpmIdjqYg2fXbRNQvDj2ITxs5PLJv9vSflK7fJBwo6ngdInAOPnDC6Fb2Ily1T5A4MznQbKnQCMnzO7FLu5lQpAtQ8Hzv57XuI4UukDgaRHguUnAOMn2WXxze9H8puHClbuYFkAjB/W72FJAIwfauxiegCMH+rsY2oAjB9q7WRaAIwf6u1l+Z8BgXWmBMDdH2ruZngAjB/q7mdoAIwfau/IdwAQbFgA3P2h/p6GBMD4YY9deQSAYN0D4O4P4/TeV9cAGD+M13NnHgEgWLcAuPvDPL325gQAwboEwN0f5uuxOycACCYAEOzuADj+wzr37s8JAILdFQB3f1jvnh06AUAwAYBgNwfA8R/quHWPTgAQTAAgmABAsJsC4Pkf6rlll/+MuZQwby9f/7ePz8d23l5+ffnfPj7/HHotdNVu+Y+cAL45+h1j8J3R/40YTNfeX7+1aQFYMfzKIegx/GtCUDYAvgRcPf6RP7fC+Ef+XO7mBFBtoCtOAzMH6jSw9wkg7vl/9t15/uvNvTs7DQz13X16BIBgAlDx2XzW6666GzsFlCEAVb+YG/36q0e4+vX5IAAQTAAq3v3H/9mxxt23ynUEEwAIJgAQTACqHv9HXU+1Y3e16wkjABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggnAtcfn49TX8/j886ik2vWEEQAIJgAQTAAqPwaMuo4qx+4q1xFMACCYAFQ9BYx+/dV339WvzwcBqBiBWa+7aoTGX4YAQLBvB6C9v7YjyexTwPzXm3sKcPcf6rv7vGnMl4eny5Ho7eW83zn85+3l17CfbfglA+ARoMaf5Y4SRo3U+MtyAlh5Gqgy/FGnAcOfziNA9RhUHn2PGBj9UgIAwdqM7wDi/hIAG7hll74EhGACAMEEAILdHADfA0Adt+7RCQCCCQAEuysAHgNgvXt26AQAwe4OgFMArHPv/pwAIJgAQLAuAfAYAPP12J0TAATrFgCnAJin196cACBY1wA4BcB4PXfW/QQgAjBO7315BIBgQwLgFAB77GrYCUAEoP6ePAJAsKEBcAqA2jsafgIQAai7nymPACIANXfjOwAINi0ATgFQby9TTwAiALV2Mv0RQASgzj6WfAcgAlBjF8u+BBQBWL+HpX8FEAE4lu5g+Z8BRYBkbeH4P17/KOTy8HRZfQ2QMPwyJ4CKHwqk/J6XCkC1DwfO/vtd6mKueSTgLFqx4Zc9AezwocFZfo/LXtg1pwF20woPf4sTwG4fJuz2+7rFRV5zGqCqtsnwP211sdeEgCraZsP/tOVF/4kYMFvbdPS/2/4NXBMCRmsnGP6n07yRPxEDemknGv3vTvmm/kYQSB/8tYg3+X+EIVcLGToAAAAAAAAAAAAAcJzJv+iymMgyQpzKAAAAAElFTkSuQmCC" alt="">
+    <b>应声运营</b><span>EchoQ Ops</span>
+  </div>
+
+  <img class="seal" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAF0ElEQVR4nO3a7U0jSRiF0a7RhgKJQDQT0UQDiUAuXi0S0sia0YJdH2/1Pef3LG5b3KerzR4HAAAAAAAAAAAAAACwk7b6Aiq4PDxdVl8Da7T31+gNRL15Q+erWkgYTv0mDZ5e2kmDcLo3ZfSM1k4Ug9O8EcNntnaCEGz9BoyeKtqmMdjyog2fqtpmIdjqYg2fXbRNQvDj2ITxs5PLJv9vSflK7fJBwo6ngdInAOPnDC6Fb2Ily1T5A4MznQbKnQCMnzO7FLu5lQpAtQ8Hzv57XuI4UukDgaRHguUnAOMn2WXxze9H8puHClbuYFkAjB/W72FJAIwfauxiegCMH+rsY2oAjB9q7WRaAIwf6u1l+Z8BgXWmBMDdH2ruZngAjB/q7mdoAIwfau/IdwAQbFgA3P2h/p6GBMD4YY9deQSAYN0D4O4P4/TeV9cAGD+M13NnHgEgWLcAuPvDPL325gQAwboEwN0f5uuxOycACCYAEOzuADj+wzr37s8JAILdFQB3f1jvnh06AUAwAYBgNwfA8R/quHWPTgAQTAAgmABAsJsC4Pkf6rlll/+MuZQwby9f/7ePz8d23l5+ffnfPj7/HHotdNVu+Y+cAL45+h1j8J3R/40YTNfeX7+1aQFYMfzKIegx/GtCUDYAvgRcPf6RP7fC+Ef+XO7mBFBtoCtOAzMH6jSw9wkg7vl/9t15/uvNvTs7DQz13X16BIBgAlDx2XzW6666GzsFlCEAVb+YG/36q0e4+vX5IAAQTAAq3v3H/9mxxt23ynUEEwAIJgAQTACqHv9HXU+1Y3e16wkjABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggnAtcfn49TX8/j886ik2vWEEQAIJgAQTAAqPwaMuo4qx+4q1xFMACCYAFQ9BYx+/dV339WvzwcBqBiBWa+7aoTGX4YAQLBvB6C9v7YjyexTwPzXm3sKcPcf6rv7vGnMl4eny5Ho7eW83zn85+3l17CfbfglA+ARoMaf5Y4SRo3U+MtyAlh5Gqgy/FGnAcOfziNA9RhUHn2PGBj9UgIAwdqM7wDi/hIAG7hll74EhGACAMEEAILdHADfA0Adt+7RCQCCCQAEuysAHgNgvXt26AQAwe4OgFMArHPv/pwAIJgAQLAuAfAYAPP12J0TAATrFgCnAJin196cACBY1wA4BcB4PXfW/QQgAjBO7315BIBgQwLgFAB77GrYCUAEoP6ePAJAsKEBcAqA2jsafgIQAai7nymPACIANXfjOwAINi0ATgFQby9TTwAiALV2Mv0RQASgzj6WfAcgAlBjF8u+BBQBWL+HpX8FEAE4lu5g+Z8BRYBkbeH4P17/KOTy8HRZfQ2QMPwyJ4CKHwqk/J6XCkC1DwfO/vtd6mKueSTgLFqx4Zc9AezwocFZfo/LXtg1pwF20woPf4sTwG4fJuz2+7rFRV5zGqCqtsnwP211sdeEgCraZsP/tOVF/4kYMFvbdPS/2/4NXBMCRmsnGP6n07yRPxEDemknGv3vTvmm/kYQSB/8tYg3+X+EIVcLGToAAAAAAAAAAAAAcJzJv+iymMgyQpzKAAAAAElFTkSuQmCC" alt="">
+
+  <div class="copy">
+    <div class="kicker">写给每一个做内容的人</div>
+    <h1>把时间，<br>留给<em>重要的事</em>。</h1>
+    <p>选题、成稿、配图、预览、发布、回收——一条链路在本地安静跑完，数据不出本机。</p>
+  </div>
+
+  <div class="timeline">
+    <div class="track"></div>
+    <ul>
+      <li>
+        <i></i>
+        <span class="t">09:40<span>定时发布</span></span>
+        <span class="gain">省下的早晨，<b>一杯热咖啡</b></span>
+      </li>
+      <li>
+        <i></i>
+        <span class="t">12:10<span>探店草稿进队</span></span>
+        <span class="gain">省下的中午，<b>一段散步</b></span>
+      </li>
+      <li>
+        <i></i>
+        <span class="t">18:30<span>市集清单自动发</span></span>
+        <span class="gain">省下的晚上，<b>一篇慢慢写的笔记</b></span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="mini">
+    <div class="bar"><i></i><i></i><i></i><span>EchoQ Ops</span></div>
+    <div class="body">
+      <div class="side">
+        <div class="on"></div><div></div><div></div><div></div><div></div>
+      </div>
+      <div class="list">
+        <div class="card"><b>小个子大衣挑选指南</b><span>09:40 · 已发布</span></div>
+        <div class="card"><b>咖啡店探店｜城南新店</b><span>12:10 · 排队中</span></div>
+        <div class="card"><b>周末去哪儿：市集清单</b><span>18:30 · 待发布</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div class="name"><b>方向三 · 时间归还</b><span>暖纸留白 · 慢节奏人文片</span></div>
+    <div class="swatches">
+      <div class="sw"><i style="background:#f4efe4"></i><span>#f4efe4</span></div>
+      <div class="sw"><i style="background:#ff2442"></i><span>#ff2442</span></div>
+      <div class="sw"><i style="background:#201a16"></i><span>#201a16</span></div>
+      <div class="sw"><i style="background:#8a7f74"></i><span>#8a7f74</span></div>
+      <div class="sw"><i style="background:#d8ccb6"></i><span>#d8ccb6</span></div>
+    </div>
+    <div class="ref"><span>参照</span><b>原研哉『白』× Notion 品牌片</b></div>
+  </div>
+</div>
+</body>
+</html>
