@@ -381,6 +381,7 @@ export function settingsPublic(): Record<string, unknown> {
   delete values.llm_api_key;
   return {
     values,
+    app_version: app.getVersion(),
     llm: {
       configured: false,
       // Node 版当前只有离线模板，前端据此显示「离线模板」而不是误报「账号不可用」。

@@ -7930,6 +7930,7 @@ function openSettings() {
   api("/api/settings")
     .then(async (data) => {
       state.settings = data;
+      applyAppVersion(data.app_version);
       await refreshCardStyles().catch((error) => {
       reportBackgroundError(error);
       return [];
@@ -10059,8 +10060,18 @@ async function boot() {
   }, 15000);
 }
 
+function applyAppVersion(version) {
+  const ver = String(version || "").trim();
+  if (!ver) return;
+  window.__APP_VERSION = ver;
+  document.querySelectorAll(".js-app-version").forEach((el) => {
+    el.textContent = `v${ver}`;
+  });
+}
+
 async function refreshSettings() {
   state.settings = await api("/api/settings");
+  applyAppVersion(state.settings.app_version);
   applyTheme((state.settings.values || {}).theme_color || "red", { persist: true });
   setEngineBadge();
 }

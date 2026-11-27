@@ -29,7 +29,7 @@ const STATE_TMP_PATH = path.join(DATA_DIR, "cloud_state.json.tmp");
 const HEADERS_TIMEOUT = 5_000;
 const BODY_TIMEOUT = 20_000;
 
-const APP_VERSION = process.env.OPS_VERSION || "0.1.0";
+export const APP_VERSION = process.env.OPS_VERSION || app.getVersion();
 const APP_CHANNEL = (process.env.OPS_CHANNEL || "stable").trim().toLowerCase();
 const APP_PLATFORM = (process.env.OPS_PLATFORM || "win-x64").trim();
 const DEFAULT_MODEL = process.env.OPS_LLM_MODEL || "deepseek-chat";

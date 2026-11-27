@@ -1404,9 +1404,7 @@ export function buildRouter(): Router {
   router.get("/api/cloud/doctor", async (ctx) =>
     ok(await cloud.doctor(String(ctx.query.get("model") || "")))
   );
-  router.get("/api/update", async () =>
-    ok(await cloud.updateInfo(String(process.env.OPS_APP_VERSION || "0.1.0")))
-  );
+  router.get("/api/update", async () => ok(await cloud.updateInfo(cloud.APP_VERSION)));
   router.post("/api/cloud/sms/send", async (ctx) =>
     ok(await cloud.sendSms(String(ctx.body.phone || "")))
   );

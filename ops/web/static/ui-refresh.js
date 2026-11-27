@@ -98,6 +98,17 @@
     return `${two(date.getHours())}:${two(date.getMinutes())}`;
   }
 
+  /* 应用版本由 /api/settings 下发（打包内 package.json 为准），前端不要再写死。 */
+  function appVersionText() {
+    const ver = String((window.__APP_VERSION || "")).trim();
+    return ver ? `v${ver}` : "";
+  }
+
+  function versionToast(prefix) {
+    const ver = appVersionText();
+    return ver ? `${prefix} ${ver}` : prefix;
+  }
+
   /* ------------------------------------------------------------------ 接口 */
 
   async function uGet(path) {
@@ -2423,7 +2434,11 @@
           const darkBtn = $("#btn-dark");
           if (darkBtn) darkBtn.click();
         } else if (act === "help" || act === "shortcuts" || act === "about" || act === "update") {
-          toast(act === "about" ? "应声运营 EchoQ Ops · v2.4.0" : "帮助中心正在准备中");
+          toast(
+            act === "about"
+              ? versionToast("应声运营 EchoQ Ops ·")
+              : "帮助中心正在准备中"
+          );
         } else if (act === "find") {
           openPalette();
         } else if (act === "quit") {
@@ -2550,7 +2565,7 @@
         return;
       }
       if (event.target.closest("#up-update")) {
-        toast("已是最新版本 v2.4.0");
+        toast(versionToast("已是最新版本"));
         return;
       }
       if (event.target.closest("#up-quit")) {
@@ -2724,7 +2739,7 @@
     const simple = {
       "#profile-password": "修改密码功能请前往账号与登录",
       "#profile-help": "帮助中心正在准备中",
-      "#profile-update": "已是最新版本 v2.4.0",
+      "#profile-update": versionToast("已是最新版本"),
       "#profile-feedback": "帮助中心正在准备中",
       "#profile-manage-plan": "订阅管理请前往云端控制台",
       "#profile-delete": "删除账号前请先导出数据",
